@@ -2,6 +2,7 @@ package samsara
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"os"
@@ -237,7 +238,7 @@ func (s *Store) Read(key string, cellIndex uint32, secret []byte) ReadResult {
 		}
 	}
 
-	newIndex, refreshed := s.refresh(active.index)
+	newIndex, refreshed := s.refresh(active.index, secret)
 	if !refreshed {
 		return ReadResult{Status: StatusErrorDB}
 	}
@@ -291,7 +292,7 @@ func (s *Store) Write(key string, value []byte, cellIndex uint32, secret []byte)
 			return WriteResult{Status: StatusErrorDB}
 		}
 
-		newIndex, refreshed := s.refresh(active.index)
+		newIndex, refreshed := s.refresh(active.index, secret)
 		if !refreshed {
 			return WriteResult{Status: StatusErrorDB}
 		}
@@ -318,7 +319,7 @@ func (s *Store) Write(key string, value []byte, cellIndex uint32, secret []byte)
 		return WriteResult{Status: StatusErrorDB}
 	}
 
-	newIndex, refreshed := s.refresh(active.index)
+	newIndex, refreshed := s.refresh(active.index, secret)
 	if !refreshed {
 		return WriteResult{Status: StatusErrorDB}
 	}
@@ -362,7 +363,7 @@ func (s *Store) Delete(key string, cellIndex uint32, secret []byte) DeleteResult
 		return DeleteResult{Status: StatusErrorDB}
 	}
 
-	newIndex, refreshed := s.refresh(active.index)
+	newIndex, refreshed := s.refresh(active.index, secret)
 	if !refreshed {
 		return DeleteResult{Status: StatusErrorDB}
 	}
@@ -402,7 +403,7 @@ func (s *Store) Diferir(cellIndex uint32, parentSecret []byte, childSecret []byt
 		return DiferirResult{Status: StatusErrorDB}
 	}
 
-	newParentIndex, refreshed := s.refresh(active.index)
+	newParentIndex, refreshed := s.refresh(active.index, parentSecret)
 	if !refreshed {
 		return DiferirResult{Status: StatusErrorDB}
 	}
@@ -440,8 +441,8 @@ func (s *Store) Cruzar(cellIndexA uint32, secretA []byte, cellIndexB uint32, sec
 		return CruzarResult{Status: StatusErrorDB}
 	}
 
-	newIndexA, okNewA := s.refresh(activeA.index)
-	newIndexB, okNewB := s.refresh(activeB.index)
+	newIndexA, okNewA := s.refresh(activeA.index, secretA)
+	newIndexB, okNewB := s.refresh(activeB.index, secretB)
 	if !okNewA || !okNewB {
 		return CruzarResult{Status: StatusErrorDB}
 	}
@@ -522,13 +523,18 @@ func (s *Store) resolveCellWithReader(cellIndex uint32, reader func(uint32) (our
 	}, true
 }
 
-func (s *Store) refresh(cellIndex uint32) (uint32, bool) {
+func (s *Store) refresh(cellIndex uint32, secret []byte) (uint32, bool) {
 	original, ok := s.readSystemCell(cellIndex)
 	if !ok {
 		return 0, false
 	}
 
-	renewedIndex, err := s.db.Append(cloneCell(original))
+	renewed, ok := refreshCellWithSecret(original, secret)
+	if !ok {
+		return 0, false
+	}
+
+	renewedIndex, err := s.db.Append(renewed)
 	if err != nil {
 		return 0, false
 	}
@@ -541,15 +547,13 @@ func (s *Store) refresh(cellIndex uint32) (uint32, bool) {
 	return renewedIndex, true
 }
 
-func cloneCell(cell ouroboros.Celula) ouroboros.Celula {
-	return ouroboros.Celula{
-		Hash:   cell.Hash,
-		Salt:   cell.Salt,
-		Genoma: cell.Genoma,
-		X:      cell.X,
-		Y:      cell.Y,
-		Z:      cell.Z,
+func refreshCellWithSecret(cell ouroboros.Celula, secret []byte) (ouroboros.Celula, bool) {
+	var salt [16]byte
+	if _, err := rand.Read(salt[:]); err != nil {
+		return ouroboros.Celula{}, false
 	}
+
+	return NewCellWithSecret(salt, secret, cell.Genoma, cell.X, cell.Y, cell.Z), true
 }
 
 func openMembraneDB(path string) (*bbolt.DB, error) {

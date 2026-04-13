@@ -107,6 +107,46 @@ func TestMembranesPersistAcrossReopen(t *testing.T) {
 	}
 }
 
+func TestRefreshRotatesSaltAndHash(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close()
+
+	secret := []byte("rotate-secret")
+	index := appendTestCell(t, store, secret, ouroboros.LeerSelf|ouroboros.EscribirSelf)
+
+	original, err := store.DB().ReadAuth(index, secret)
+	if err != nil {
+		t.Fatalf("read original cell: %v", err)
+	}
+
+	write := store.Write("rotating", []byte("value"), index, secret)
+	if write.Status != StatusOK || !write.HasNewCell {
+		t.Fatalf("write failed: %+v", write)
+	}
+
+	refreshed := store.ReadCell(write.NewCellIndex, secret)
+	if refreshed.Status != StatusOK || !refreshed.HasCell {
+		t.Fatalf("read refreshed cell failed: %+v", refreshed)
+	}
+
+	if refreshed.Cell.Salt == original.Salt {
+		t.Fatalf("expected a new salt after refresh")
+	}
+
+	if refreshed.Cell.Hash == original.Hash {
+		t.Fatalf("expected a new hash after refresh")
+	}
+
+	if refreshed.Cell.Genoma != original.Genoma || refreshed.Cell.X != original.X || refreshed.Cell.Y != original.Y || refreshed.Cell.Z != original.Z {
+		t.Fatalf("refresh changed non-secret cell fields: original=%+v refreshed=%+v", original, refreshed.Cell)
+	}
+
+	read := store.Read("rotating", write.NewCellIndex, secret)
+	if read.Status != StatusOK || !read.HasValue || !bytes.Equal(read.Value, []byte("value")) {
+		t.Fatalf("read with refreshed cell failed: %+v", read)
+	}
+}
+
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
 
