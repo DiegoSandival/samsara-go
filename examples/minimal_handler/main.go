@@ -66,6 +66,10 @@ func main() {
 	h := handler.NewCentralHandler(baseDir)
 	defer h.Close()
 
+	//crate or load list of DBs from disk
+
+	//create or load file for each DB in list
+
 	//OPCODE, ID,  payload [size (int32), name len (int32), DB name (string), secret (variable)]
 	var rawReq []byte
 	rawReq = append(rawReq, OpcodeCreateDB)
