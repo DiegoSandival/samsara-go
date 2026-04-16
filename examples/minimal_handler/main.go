@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
 	"log"
 	"os"
@@ -111,27 +112,108 @@ func (h *CentralHandler) Handle(msg Message) []byte {
 	case OpcodeCreateDB:
 		// Handle create DB opcode
 
-		//payload [size (int32), DB name (string)]
+		//payload [size (int32), name len (int32), DB name (string), secret (variable)]
 
 		//exatract DB name and size from payload
 		//extract size from payload int32
-		var size int32
+		var size uint32
 		if len(msg.Payload) >= 4 {
-			size = int32(msg.Payload[0]) | int32(msg.Payload[1])<<8 | int32(msg.Payload[2])<<16 | int32(msg.Payload[3])<<24
+			size = uint32(msg.Payload[0]) | uint32(msg.Payload[1])<<8 | uint32(msg.Payload[2])<<16 | uint32(msg.Payload[3])<<24
 		}
 
-		store, err := samsara.New(string(msg.Payload[4:]), uint32(size))
+		//extract DB name from payload
+		var nameLen uint32
+		if len(msg.Payload) >= 8 {
+			nameLen = uint32(msg.Payload[4]) | uint32(msg.Payload[5])<<8 | uint32(msg.Payload[6])<<16 | uint32(msg.Payload[7])<<24
+		}
+		var name string
+		if len(msg.Payload) > 8 {
+			name = string(msg.Payload[8 : 8+nameLen])
+		} else {
+			return []byte{0x01} // Error status: missing DB name
+		}
+
+		store, err := samsara.New(name, size)
 		if err != nil {
 			log.Fatal(err)
 		}
 		defer store.Close()
 
-		h.stores[string(msg.Payload[4:])] = store
+		h.stores[name] = store
+
+		//extract secret from payload (after size and name)
+		var secret []byte
+		if len(msg.Payload) > int(8+nameLen) {
+			secret = msg.Payload[8+nameLen:]
+		} else {
+			return []byte{0x01} // Error status: missing secret
+		}
+
+		var salt [16]byte
+		// Read llena el slice con bytes aleatorios seguros
+		_, err = rand.Read(salt[:])
+		if err != nil {
+			// Este error es extremadamente raro, pero debe manejarse
+			log.Fatal(err)
+		}
+
+		cell := samsara.NewCellWithSecret(
+			salt,
+			secret,
+			ouroboros.LeerSelf|ouroboros.EscribirSelf,
+			0,
+			0,
+			0,
+		)
+
+		_, _ = store.DB().Append(cell)
+
 		return []byte{0x00} // Success status
+
 	case OpcodeDeleteDB:
-		// Handle delete DB opcode
-		delete(h.stores, string(msg.Payload[4:]))
+
+		//payload [name len (int32), DB name (string), secret (variable)]
+
+		//extract DB name from payload
+		var nameLen uint32
+		if len(msg.Payload) >= 8 {
+			nameLen = uint32(msg.Payload[4]) | uint32(msg.Payload[5])<<8 | uint32(msg.Payload[6])<<16 | uint32(msg.Payload[7])<<24
+		}
+		var name string
+		if len(msg.Payload) > 8 {
+			name = string(msg.Payload[8 : 8+nameLen])
+		} else {
+			return []byte{0x01} // Error status: missing DB name
+		}
+
+		//extract secret from payload (after size and name)
+		var secret []byte
+		if len(msg.Payload) > int(8+nameLen) {
+			secret = msg.Payload[8+nameLen:]
+		} else {
+			return []byte{0x01} // Error status: missing secret
+		}
+
+		store, exists := h.stores[name]
+		if !exists {
+			return []byte{0x01} // Error status: DB not found
+		}
+
+		_, err := store.DB().ReadAuth(0, secret)
+		if err != nil {
+			return []byte{0x01} // Error status: invalid secret
+		}
+
+		delete(h.stores, name)
 		return []byte{0x00} // Success status
+
+	case OpcodeDiferir:
+		// Handle append cell opcode
+		// Payload: [DB name (string), salt (16 bytes), secret (variable), genome (uint32)]
+
+	default:
+		return []byte{0x01} // Unknown opcode or error status
+		// 	// Handle unknown opcode
 	}
 	return []byte{0x01} // Unknown opcode or error status
 }
