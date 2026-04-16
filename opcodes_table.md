@@ -2,6 +2,19 @@
 
 Esta tabla resume todos los opcodes definidos en el protocolo Samsara.
 
+## Contrato del Handler Central
+
+El handler central consume y produce bytes crudos, independiente del transporte.
+
+### Request Envelope (entrada al handler)
+
+```
+[Opcode: 1 byte] [ID: 16 bytes] [Payload: N bytes]
+```
+
+- `ID` se usa para correlacion request/response fuera del handler.
+- El handler no interpreta semanticamente `ID`; solo parsea el envelope de entrada.
+
 ## Operaciones de Datos
 
 ### Lectura
@@ -22,8 +35,8 @@ Esta tabla resume todos los opcodes definidos en el protocolo Samsara.
 
 | Opcode | Código | Descripción | Requiere Auth | Parámetros | Retorna New Index |
 |--------|--------|-------------|---------------|-----------|-------------------|
-| CREATE_DB | `0x08` | Crear una base de datos | **Sí** | `dbName, cellIndex, secret` | **No** |
-| DELETE_DB | `0x09` | Eliminar una base de datos | **Sí** | `dbName, cellIndex, secret` | **No** |
+| CREATE_DB | `0x08` | Crear una base de datos | **NO** | `dbName, cellIndex, secret` | **No** |
+| DELETE_DB | `0x09` | Eliminar una base de datos | **NO** | `dbName, cellIndex, secret` | **No** |
 
 ## Operaciones de Célula (Genética)
 
@@ -95,7 +108,7 @@ Esta tabla resume todos los opcodes definidos en el protocolo Samsara.
 
 ## Estados de Respuesta
 
-Todos los opcodes retornan uno de estos estados:
+Todos los opcodes retornan uno de estos estados, codificados en 1 byte:
 
 | Estado | Descripción |
 |--------|-------------|
@@ -103,6 +116,152 @@ Todos los opcodes retornan uno de estos estados:
 | `unauthorized` | Autenticación fallida o permisos insuficientes |
 | `undefined` | El recurso no existe |
 | `error_db` | Error en la base de datos |
+
+| Código (byte) | Estado |
+|---------------|--------|
+| `0` | `ok` |
+| `1` | `unauthorized` |
+| `2` | `undefined` |
+| `3` | `error_db` |
+
+## Formato Binario de Response (implementado)
+
+Todos los responses usan el mismo envelope:
+
+```
+[StatusCode: 1 byte] [Payload Length: 4 bytes LE] [Payload: N bytes]
+```
+
+Si `StatusCode` es `2` (`undefined`) o `3` (`error_db`) por error de parsing/opcode/db, el payload es:
+
+```
+[Error Length: 4 bytes LE] [Error Message: N bytes UTF-8]
+```
+
+### Payload por Opcode
+
+### READ (0x01)
+
+```
+[Value Length: 4 bytes LE] [Value: N bytes]
+[CellIndex: 4 bytes LE]
+[NewCellIndex: 4 bytes LE]
+[Flags: 1 byte]
+```
+
+`Flags`:
+- bit 0 (`0x01`): `HasValue`
+- bit 1 (`0x02`): `HasCellIndex`
+- bit 2 (`0x04`): `HasNewCell`
+
+### READ_FREE (0x02)
+
+```
+[Value Length: 4 bytes LE] [Value: N bytes]
+[Flags: 1 byte]
+```
+
+`Flags`:
+- bit 0 (`0x01`): `HasValue`
+
+### WRITE (0x03)
+
+```
+[CellIndex: 4 bytes LE]
+[NewCellIndex: 4 bytes LE]
+[Flags: 1 byte]
+```
+
+`Flags`:
+- bit 0 (`0x01`): `HasCellIndex`
+- bit 1 (`0x02`): `HasNewCell`
+
+### DELETE (0x04)
+
+```
+[CellIndex: 4 bytes LE]
+[NewCellIndex: 4 bytes LE]
+[Flags: 1 byte]
+```
+
+`Flags`:
+- bit 0 (`0x01`): `HasCellIndex`
+- bit 1 (`0x02`): `HasNewCell`
+
+### READ_CELL (0x05)
+
+```
+[Hash: 32 bytes]
+[Salt: 16 bytes]
+[Genome: 4 bytes LE]
+[X: 4 bytes LE]
+[Y: 4 bytes LE]
+[Z: 4 bytes LE]
+[CellIndex: 4 bytes LE]
+[Flags: 1 byte]
+```
+
+Tamano total fijo: 69 bytes.
+
+`Flags`:
+- bit 0 (`0x01`): `HasCell`
+- bit 1 (`0x02`): `HasCellIndex`
+
+### DIFERIR (0x06)
+
+```
+[CellIndex: 4 bytes LE]
+[DeferredIndex: 4 bytes LE]
+[NewCellIndex: 4 bytes LE]
+[Flags: 1 byte]
+```
+
+`Flags`:
+- bit 0 (`0x01`): `HasCellIndex`
+- bit 1 (`0x02`): `HasDeferred`
+- bit 2 (`0x04`): `HasNewCell`
+
+### CRUZAR (0x07)
+
+```
+[CellIndexA: 4 bytes LE]
+[CellIndexB: 4 bytes LE]
+[ChildIndex: 4 bytes LE]
+[NewCellIndexA: 4 bytes LE]
+[NewCellIndexB: 4 bytes LE]
+[Flags: 1 byte]
+```
+
+`Flags`:
+- bit 0 (`0x01`): `HasCellIndexA`
+- bit 1 (`0x02`): `HasCellIndexB`
+- bit 2 (`0x04`): `HasChild`
+- bit 3 (`0x08`): `HasNewCellA`
+- bit 4 (`0x10`): `HasNewCellB`
+
+### CREATE_DB (0x08)
+
+Response `ok`:
+
+```
+[DB Name Length: 4 bytes LE] [DB Name: N bytes]
+```
+
+### DELETE_DB (0x09)
+
+Response `ok`:
+
+```
+[DB Name Length: 4 bytes LE] [DB Name: N bytes]
+```
+
+## Nota de Flujo Manual
+
+No existe DB por defecto. El flujo esperado es manual:
+
+1. Enviar `CREATE_DB`.
+2. Operar (`READ`, `WRITE`, `DELETE`, `READ_CELL`, `DIFERIR`, `CRUZAR`) sobre ese `dbName`.
+3. Enviar `DELETE_DB` cuando corresponda.
 
 ## Sistema de Permisos (Genoma)
 
