@@ -5,7 +5,9 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"path/filepath"
 	"sync"
 
@@ -46,6 +48,12 @@ type CentralHandler struct {
 	stores map[string]*samsara.Store
 }
 
+func (h *CentralHandler) RegisterStore(name string, store *samsara.Store) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.stores[name] = store
+}
+
 func Unmarshal(data []byte) (Message, error) {
 	if len(data) < requestHeaderSize {
 		return Message{}, fmt.Errorf("message too short: got %d, want at least %d", len(data), requestHeaderSize)
@@ -70,18 +78,99 @@ func main() {
 
 	//create or load file for each DB in list
 
+	db_names, err := os.OpenFile(baseDir+string(os.PathSeparator)+"db_names.txt", os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer db_names.Close()
+
+	db_name_list, err := io.ReadAll(db_names)
+	if err != nil {
+		panic(err)
+	}
+
+	//pasamos la lista de DBs a memoria un slice de strings
+	var dbs_list []string
+	for _, name := range bytes.Split(db_name_list, []byte{'\n'}) {
+		if len(name) > 0 {
+			dbs_list = append(dbs_list, string(name))
+		}
+	}
+
+	//cargamos cada DB en memoria
+	for _, name := range dbs_list {
+		store, err := samsara.Open(name)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		h.RegisterStore(name, store)
+	}
+
 	//OPCODE, ID,  payload [size (int32), name len (int32), DB name (string), secret (variable)]
-	var rawReq []byte
-	rawReq = append(rawReq, OpcodeCreateDB)
-	rawReq = append(rawReq, []byte("request-00000001")...)
+	var createDBreq []byte
+	createDBreq = append(createDBreq, OpcodeCreateDB)
+	createDBreq = append(createDBreq, []byte("request-00000001")...)
 	size := uint32(64)
 	name := "manual"
 	nameLen := uint32(len(name))
-	rawReq = append(rawReq, byte(size), byte(size>>8), byte(size>>16), byte(size>>24))
-	rawReq = append(rawReq, byte(nameLen), byte(nameLen>>8), byte(nameLen>>16), byte(nameLen>>24))
-	rawReq = append(rawReq, []byte(name)...)
-	rawReq = append(rawReq, []byte("manual-secret")...)
-	h.HandleRaw(rawReq)
+	createDBreq = append(createDBreq, byte(size), byte(size>>8), byte(size>>16), byte(size>>24))
+	createDBreq = append(createDBreq, byte(nameLen), byte(nameLen>>8), byte(nameLen>>16), byte(nameLen>>24))
+	createDBreq = append(createDBreq, []byte(name)...)
+	createDBreq = append(createDBreq, []byte("manual-secret")...)
+
+	h.HandleRaw(createDBreq)
+
+	//OPCODE, ID, payload [name len (int32), DB name (string), secret (variable)]
+	var deleteDBreq []byte
+	deleteDBreq = append(deleteDBreq, OpcodeDeleteDB)
+	deleteDBreq = append(deleteDBreq, []byte("request-00000004")...)
+	nameLen = uint32(len(name))
+	deleteDBreq = append(deleteDBreq, byte(nameLen), byte(nameLen>>8), byte(nameLen>>16), byte(nameLen>>24))
+	deleteDBreq = append(deleteDBreq, []byte(name)...)
+	deleteDBreq = append(deleteDBreq, []byte("manual-secret")...)
+
+	h.HandleRaw(deleteDBreq)
+
+	//opcode, ID, payload [cel_index, secrete_len, secrete, dbname_len, DB name, len_key, key, value]
+	var writeReq []byte
+	writeReq = append(writeReq, OpcodeWrite)
+	writeReq = append(writeReq, []byte("request-00000002")...)
+	cellIndex := uint32(0)
+	secret := []byte("manual-secret")
+	dbName := "manual"
+	key := "greeting"
+	value := []byte("hello world")
+	writeReq = append(writeReq, byte(cellIndex), byte(cellIndex>>8), byte(cellIndex>>16), byte(cellIndex>>24))
+	secretLen := uint32(len(secret))
+	writeReq = append(writeReq, byte(secretLen), byte(secretLen>>8), byte(secretLen>>16), byte(secretLen>>24))
+	writeReq = append(writeReq, secret...)
+	dbNameLen := uint32(len(dbName))
+	writeReq = append(writeReq, byte(dbNameLen), byte(dbNameLen>>8), byte(dbNameLen>>16), byte(dbNameLen>>24))
+	writeReq = append(writeReq, []byte(dbName)...)
+	keyLen := uint32(len(key))
+	writeReq = append(writeReq, byte(keyLen), byte(keyLen>>8), byte(keyLen>>16), byte(keyLen>>24))
+	writeReq = append(writeReq, []byte(key)...)
+	writeReq = append(writeReq, value...)
+
+	h.HandleRaw(writeReq)
+
+	//opcode, ID, payload [cel_index, secrete_len, secrete, key]
+	var readReq []byte
+	readReq = append(readReq, OpcodeRead)
+	readReq = append(readReq, []byte("request-00000003")...)
+	cellIndex = uint32(0)
+	secret = []byte("manual-secret")
+	readReq = append(readReq, byte(cellIndex), byte(cellIndex>>8), byte(cellIndex>>16), byte(cellIndex>>24))
+	secretLen = uint32(len(secret))
+	readReq = append(readReq, byte(secretLen), byte(secretLen>>8), byte(secretLen>>16), byte(secretLen>>24))
+	readReq = append(readReq, secret...)
+	key = "greeting"
+	keyLen = uint32(len(key))
+	readReq = append(readReq, byte(keyLen), byte(keyLen>>8), byte(keyLen>>16), byte(keyLen>>24))
+	readReq = append(readReq, []byte(key)...)
+
+	h.HandleRaw(readReq)
 
 }
 
@@ -127,6 +216,12 @@ func (h *CentralHandler) Handle(msg Message) []byte {
 		} else {
 			return []byte{0x01} // Error status: missing DB name
 		}
+		var secret []byte
+		if len(msg.Payload) > int(8+nameLen) {
+			secret = msg.Payload[8+nameLen:]
+		} else {
+			return []byte{0x01} // Error status: missing secret
+		}
 
 		store, err := samsara.New(name, size)
 		if err != nil {
@@ -137,12 +232,6 @@ func (h *CentralHandler) Handle(msg Message) []byte {
 		h.stores[name] = store
 
 		//extract secret from payload (after size and name)
-		var secret []byte
-		if len(msg.Payload) > int(8+nameLen) {
-			secret = msg.Payload[8+nameLen:]
-		} else {
-			return []byte{0x01} // Error status: missing secret
-		}
 
 		var salt [16]byte
 		// Read llena el slice con bytes aleatorios seguros
@@ -259,10 +348,7 @@ func (h *CentralHandler) Handle(msg Message) []byte {
 			return []byte{0x01} // Error status: missing value
 		}
 
-		_, err := h.stores[dbName].DB().WriteAuth(cellIndex, secret, key, value)
-		if err != nil {
-			return []byte{0x01} // Error status: write failed
-		}
+		h.stores[dbName].Write(string(key), value, cellIndex, secret)
 
 		return []byte{0x00} // Success status
 
@@ -300,13 +386,12 @@ func (h *CentralHandler) Handle(msg Message) []byte {
 
 		result := h.stores["manual"].Read(string(key), cellIndex, secret)
 
-		return []byte(result) // Success: return the value
+		return encodeReadResult(result) // Success: return the value
 
 	default:
 		return []byte{0x01} // Unknown opcode or error status
 		// 	// Handle unknown opcode
 	}
-	return []byte{0x01} // Unknown opcode or error status
 }
 
 func encodeReadResult(r samsara.ReadResult) []byte {

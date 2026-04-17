@@ -2,14 +2,17 @@ package handler
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
+	ouroboros "github.com/DiegoSandival/ouroboros-go"
 	samsara "github.com/DiegoSandival/samsara-go"
 )
 
@@ -27,10 +30,10 @@ const (
 
 const (
 	requestHeaderSize = 17 // 1 byte opcode + 16 bytes request ID
+	dbNamesFileName   = "db_names.txt"
 	maxStringLen      = 1024
 	maxSecretLen      = 4096
 	maxValueLen       = 8 * 1024 * 1024
-	defaultMaxRecords = 60
 )
 
 const (
@@ -61,10 +64,30 @@ func NewCentralHandler(baseDir string) *CentralHandler {
 	}
 	_ = os.MkdirAll(baseDir, 0755)
 
-	return &CentralHandler{
+	h := &CentralHandler{
 		baseDir: baseDir,
 		stores:  make(map[string]*samsara.Store),
 	}
+	_ = h.loadStoresFromDisk()
+	return h
+}
+
+func (h *CentralHandler) RegisterStore(name string, store *samsara.Store) error {
+	if err := validateDBName(name); err != nil {
+		return err
+	}
+	if store == nil {
+		return errors.New("store is required")
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if existing, ok := h.stores[name]; ok && existing != nil && existing != store {
+		_ = existing.Close()
+	}
+	h.stores[name] = store
+	return h.persistDBNamesLocked()
 }
 
 func (h *CentralHandler) Close() error {
@@ -222,11 +245,11 @@ func (h *CentralHandler) Handle(msg Message) []byte {
 		result := store.Cruzar(p.CellIndexA, p.SecretA, p.CellIndexB, p.SecretB, p.ChildSecret, p.ChildSalt, p.X, p.Y, p.Z)
 		return MarshalEnvelope(statusCodeFromStatus(result.Status), encodeCruzarResult(result))
 	case OpcodeCreateDB:
-		p, err := parseManageDBPayload(msg.Payload)
+		p, err := parseCreateDBPayload(msg.Payload)
 		if err != nil {
 			return errorEnvelope(StatusCodeUndefined, "invalid payload: "+err.Error())
 		}
-		if err := h.createDB(p.DBName); err != nil {
+		if err := h.createDB(p.DBName, p.Size, p.Secret); err != nil {
 			if errors.Is(err, os.ErrExist) {
 				return errorEnvelope(StatusCodeUndefined, err.Error())
 			}
@@ -250,9 +273,12 @@ func (h *CentralHandler) Handle(msg Message) []byte {
 	}
 }
 
-func (h *CentralHandler) createDB(dbName string) error {
+func (h *CentralHandler) createDB(dbName string, size uint32, secret []byte) error {
 	if err := validateDBName(dbName); err != nil {
 		return err
+	}
+	if len(secret) == 0 {
+		return errors.New("secret is required")
 	}
 
 	h.mu.Lock()
@@ -269,11 +295,41 @@ func (h *CentralHandler) createDB(dbName string) error {
 		return err
 	}
 
-	store, err := samsara.New(path, defaultMaxRecords)
+	store, err := samsara.New(path, size)
 	if err != nil {
 		return err
 	}
+
+	var salt [16]byte
+	if _, err := rand.Read(salt[:]); err != nil {
+		_ = store.Close()
+		return err
+	}
+
+	cell := samsara.NewCellWithSecret(
+		salt,
+		secret,
+		ouroboros.LeerSelf|ouroboros.EscribirSelf|ouroboros.LeerAny|ouroboros.EscribirAny|ouroboros.BorrarSelf|ouroboros.BorrarAny|ouroboros.Diferir,
+		0,
+		0,
+		0,
+	)
+
+	if _, err := store.DB().Append(cell); err != nil {
+		_ = store.Close()
+		_ = os.Remove(path)
+		_ = os.Remove(path + ".bolt")
+		return err
+	}
+
 	h.stores[dbName] = store
+	if err := h.persistDBNamesLocked(); err != nil {
+		delete(h.stores, dbName)
+		_ = store.Close()
+		_ = os.Remove(path)
+		_ = os.Remove(path + ".bolt")
+		return err
+	}
 	return nil
 }
 
@@ -313,6 +369,10 @@ func (h *CentralHandler) deleteDB(dbName string) error {
 		return fmt.Errorf("db does not exist: %w", os.ErrNotExist)
 	}
 
+	if err := h.persistDBNamesLocked(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -333,12 +393,88 @@ func (h *CentralHandler) getStore(dbName string) (*samsara.Store, bool) {
 		return nil, false
 	}
 
-	store, err := samsara.New(path, defaultMaxRecords)
+	store, err := samsara.Open(path)
 	if err != nil {
 		return nil, false
 	}
 	h.stores[dbName] = store
 	return store, true
+}
+
+func (h *CentralHandler) getStoreByReadAuth(cellIndex uint32, secret []byte) (*samsara.Store, bool) {
+	h.mu.Lock()
+	stores := make([]*samsara.Store, 0, len(h.stores))
+	for _, store := range h.stores {
+		if store != nil {
+			stores = append(stores, store)
+		}
+	}
+	h.mu.Unlock()
+
+	for _, store := range stores {
+		result := store.ReadCell(cellIndex, secret)
+		if result.Status == samsara.StatusOK {
+			return store, true
+		}
+	}
+
+	return nil, false
+}
+
+func (h *CentralHandler) loadStoresFromDisk() error {
+	if h == nil {
+		return nil
+	}
+
+	data, err := os.ReadFile(h.dbNamesPath())
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+
+	names := strings.Split(string(data), "\n")
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for _, raw := range names {
+		name := strings.TrimSpace(raw)
+		if name == "" {
+			continue
+		}
+		if err := validateDBName(name); err != nil {
+			continue
+		}
+
+		path := h.dbPath(name)
+		store, err := samsara.Open(path)
+		if err != nil {
+			continue
+		}
+		h.stores[name] = store
+	}
+
+	return nil
+}
+
+func (h *CentralHandler) persistDBNamesLocked() error {
+	names := make([]string, 0, len(h.stores))
+	for name := range h.stores {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	content := ""
+	if len(names) > 0 {
+		content = strings.Join(names, "\n") + "\n"
+	}
+
+	return os.WriteFile(h.dbNamesPath(), []byte(content), 0644)
+}
+
+func (h *CentralHandler) dbNamesPath() string {
+	return filepath.Join(h.baseDir, dbNamesFileName)
 }
 
 func (h *CentralHandler) dbPath(dbName string) string {
@@ -632,13 +768,15 @@ type manageDBPayload struct {
 	Secret    []byte
 }
 
+type createDBPayload struct {
+	Size   uint32
+	DBName string
+	Secret []byte
+}
+
 func parseReadPayload(data []byte) (readPayload, error) {
 	r := newPayloadReader(data)
 	dbName, err := r.readLenString(maxStringLen, "dbName")
-	if err != nil {
-		return readPayload{}, err
-	}
-	key, err := r.readLenString(maxStringLen, "key")
 	if err != nil {
 		return readPayload{}, err
 	}
@@ -650,9 +788,14 @@ func parseReadPayload(data []byte) (readPayload, error) {
 	if err != nil {
 		return readPayload{}, err
 	}
-	if err := r.ensureEOF(); err != nil {
-		return readPayload{}, err
+	key := string(r.data[r.off:])
+	if len(key) > maxStringLen {
+		return readPayload{}, fmt.Errorf("key too large: %d > %d", len(key), maxStringLen)
 	}
+	if len(key) == 0 {
+		return readPayload{}, errors.New("key is required")
+	}
+	r.off = len(r.data)
 	return readPayload{DBName: dbName, Key: key, CellIndex: cellIndex, Secret: secret}, nil
 }
 
@@ -678,14 +821,6 @@ func parseWritePayload(data []byte) (writePayload, error) {
 	if err != nil {
 		return writePayload{}, err
 	}
-	key, err := r.readLenString(maxStringLen, "key")
-	if err != nil {
-		return writePayload{}, err
-	}
-	value, err := r.readLenBytes(maxValueLen, "value")
-	if err != nil {
-		return writePayload{}, err
-	}
 	cellIndex, err := r.readU32()
 	if err != nil {
 		return writePayload{}, err
@@ -694,9 +829,15 @@ func parseWritePayload(data []byte) (writePayload, error) {
 	if err != nil {
 		return writePayload{}, err
 	}
-	if err := r.ensureEOF(); err != nil {
+	key, err := r.readLenString(maxStringLen, "key")
+	if err != nil {
 		return writePayload{}, err
 	}
+	value := append([]byte(nil), r.data[r.off:]...)
+	if len(value) > maxValueLen {
+		return writePayload{}, fmt.Errorf("value too large: %d > %d", len(value), maxValueLen)
+	}
+	r.off = len(r.data)
 	return writePayload{DBName: dbName, Key: key, Value: value, CellIndex: cellIndex, Secret: secret}, nil
 }
 
@@ -881,12 +1022,40 @@ func parseManageDBPayload(data []byte) (manageDBPayload, error) {
 	return manageDBPayload{DBName: dbName, CellIndex: cellIndex, Secret: secret}, nil
 }
 
+func parseCreateDBPayload(data []byte) (createDBPayload, error) {
+	if len(data) < 8 {
+		return createDBPayload{}, errors.New("payload too short for size and dbName length")
+	}
+
+	size := binary.LittleEndian.Uint32(data[:4])
+	nameLen := binary.LittleEndian.Uint32(data[4:8])
+	if nameLen == 0 {
+		return createDBPayload{}, errors.New("dbName is required")
+	}
+	if nameLen > maxStringLen {
+		return createDBPayload{}, fmt.Errorf("dbName too large: %d > %d", nameLen, maxStringLen)
+	}
+
+	if int(nameLen) > len(data)-8 {
+		return createDBPayload{}, errors.New("dbName payload truncated")
+	}
+
+	nameEnd := 8 + int(nameLen)
+	dbName := string(data[8:nameEnd])
+	secret := append([]byte(nil), data[nameEnd:]...)
+	if len(secret) == 0 {
+		return createDBPayload{}, errors.New("secret is required")
+	}
+
+	return createDBPayload{Size: size, DBName: dbName, Secret: secret}, nil
+}
+
 func BuildReadPayload(dbName, key string, cellIndex uint32, secret []byte) []byte {
 	var b bytes.Buffer
 	writeString(&b, dbName)
-	writeString(&b, key)
 	writeU32(&b, cellIndex)
 	writeBytes(&b, secret)
+	b.WriteString(key)
 	return b.Bytes()
 }
 
@@ -900,10 +1069,10 @@ func BuildReadFreePayload(dbName, key string) []byte {
 func BuildWritePayload(dbName, key string, value []byte, cellIndex uint32, secret []byte) []byte {
 	var b bytes.Buffer
 	writeString(&b, dbName)
-	writeString(&b, key)
-	writeBytes(&b, value)
 	writeU32(&b, cellIndex)
 	writeBytes(&b, secret)
+	writeString(&b, key)
+	b.Write(value)
 	return b.Bytes()
 }
 
@@ -958,6 +1127,15 @@ func BuildManageDBPayload(dbName string, cellIndex uint32, secret []byte) []byte
 	writeString(&b, dbName)
 	writeU32(&b, cellIndex)
 	writeBytes(&b, secret)
+	return b.Bytes()
+}
+
+func BuildCreateDBPayload(size uint32, dbName string, secret []byte) []byte {
+	var b bytes.Buffer
+	writeU32(&b, size)
+	writeU32(&b, uint32(len(dbName)))
+	b.WriteString(dbName)
+	b.Write(secret)
 	return b.Bytes()
 }
 

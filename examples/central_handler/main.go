@@ -26,7 +26,7 @@ func main() {
 	printResponse(readBefore)
 
 	fmt.Println("2) CREATE_DB manual")
-	created := send(h, reqID, handler.OpcodeCreateDB, handler.BuildManageDBPayload("manual", 0, nil))
+	created := send(h, reqID, handler.OpcodeCreateDB, handler.BuildCreateDBPayload(60, "manual", []byte("root-secret")))
 	printResponse(created)
 
 	fmt.Println("3) READ_FREE en DB vacia (debe ser undefined)")

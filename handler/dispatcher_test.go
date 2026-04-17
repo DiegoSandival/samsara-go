@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/binary"
+	"os"
 	"strings"
 	"testing"
 
@@ -18,7 +19,7 @@ func TestCentralHandler_ManualFlowAllOpcodes(t *testing.T) {
 	missingWrite := send(t, h, id, OpcodeWrite, BuildWritePayload("main", "alpha", []byte("v1"), 1, []byte("x")))
 	assertStatus(t, missingWrite, StatusCodeUndefined)
 
-	created := send(t, h, id, OpcodeCreateDB, BuildManageDBPayload("main", 0, nil))
+	created := send(t, h, id, OpcodeCreateDB, BuildCreateDBPayload(60, "main", []byte("root-secret")))
 	assertStatus(t, created, StatusCodeOK)
 
 	store, ok := h.getStore("main")
@@ -105,6 +106,51 @@ func TestInvalidPayloadAndUnknownOpcode(t *testing.T) {
 	assertStatus(t, unknownResp, StatusCodeUndefined)
 	if !strings.Contains(decodeErrorString(t, unknownResp.payload), "unknown opcode") {
 		t.Fatalf("unexpected unknown opcode payload: %q", decodeErrorString(t, unknownResp.payload))
+	}
+}
+
+func TestCentralHandler_PersistAndReloadDBNames(t *testing.T) {
+	baseDir := t.TempDir()
+	h := NewCentralHandler(baseDir)
+	defer h.Close()
+
+	id := makeRequestID("persist-db-names")
+	secret := []byte("root-secret")
+
+	created := send(t, h, id, OpcodeCreateDB, BuildCreateDBPayload(64, "main", secret))
+	assertStatus(t, created, StatusCodeOK)
+
+	namesData, err := os.ReadFile(baseDir + "/db_names.txt")
+	if err != nil {
+		t.Fatalf("read db_names.txt: %v", err)
+	}
+	if string(namesData) != "main\n" {
+		t.Fatalf("unexpected db_names.txt content: %q", string(namesData))
+	}
+
+	if err := h.Close(); err != nil {
+		t.Fatalf("close handler: %v", err)
+	}
+
+	h2 := NewCentralHandler(baseDir)
+	defer h2.Close()
+
+	h2.mu.Lock()
+	_, loaded := h2.stores["main"]
+	h2.mu.Unlock()
+	if !loaded {
+		t.Fatal("expected main db to be loaded from db_names.txt")
+	}
+
+	deleted := send(t, h2, id, OpcodeDeleteDB, BuildManageDBPayload("main", 0, nil))
+	assertStatus(t, deleted, StatusCodeOK)
+
+	namesAfterDelete, err := os.ReadFile(baseDir + "/db_names.txt")
+	if err != nil {
+		t.Fatalf("read db_names.txt after delete: %v", err)
+	}
+	if len(namesAfterDelete) != 0 {
+		t.Fatalf("expected empty db_names.txt after delete, got: %q", string(namesAfterDelete))
 	}
 }
 

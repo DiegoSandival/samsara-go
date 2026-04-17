@@ -126,6 +126,21 @@ func New(path string, maxRecords uint32) (*Store, error) {
 	return NewWithDBAndKV(db, kv)
 }
 
+func Open(path string) (*Store, error) {
+	db, err := ouroboros.OpenOuroborosDB(path, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	kv, err := openMembraneDB(path + ".bolt")
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+
+	return NewWithDBAndKV(db, kv)
+}
+
 func NewWithDB(db *ouroboros.OuroborosDB) (*Store, error) {
 	if db == nil {
 		return nil, ErrNilDB
