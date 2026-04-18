@@ -205,13 +205,20 @@ func (p *ProtocolParser) ReadResult(msg []byte) (ReadResult, error) {
 
 /*READ_FREE (0x02)
 [Opcode: 1]
+[ID: 16]
 [DB Name Len: 4]
 [Key Len: 4] |
 [DB Name: N]
 [Key: M]*/
 
+/*READ_FREE result
+[ID: 16]
+[Status: 4]
+[Value: 4]*/
+
 /*WRITE (0x03)
 [Opcode: 1]
+[ID: 16]
 [CellIndex: 4]
 [DB Name Len: 4]
 [Key Len: 4]
@@ -222,8 +229,13 @@ func (p *ProtocolParser) ReadResult(msg []byte) (ReadResult, error) {
 [Value: P]
 [Secret: Q]*/
 
+/*WRITE result
+[ID: 16]
+[Status: 4]*/
+
 /*DELETE (0x04)
 [Opcode: 1]
+[ID: 16]
 [CellIndex: 4]
 [DB Name Len: 4]
 [Key Len: 4]
@@ -232,7 +244,57 @@ func (p *ProtocolParser) ReadResult(msg []byte) (ReadResult, error) {
 [Key: M]
 [Secret: P]*/
 
-/*CREATE_DB (0x08) / DELETE_DB (0x09) / READ_CELL (0x05)
+/*DELETE result
+[ID: 16]
+[Status: 4]*/
+
+/*CREATE_GENESIS (0x010)
+[Opcode: 1]
+[ID: 16]
+[DB Name Len: 4]
+[Secret Len: 4]
+[Size: 4] |
+[DB Name: N]
+[Secret: M]*/
+
+/*CREATE_GENESIS result
+[ID: 16]
+[Status: 4]
+[CellIndex: 4]*/
+
+/*CREATE_DB (0x08)
+[Opcode: 1]
+[ID: 16]
+[CellIndex: 4]
+[DB Name Len: 4]
+[Secret Len: 4]
+[Genesis DB len: 4]
+[Genesis index: 4]|
+[DB Name: N]
+[Secret: M]
+[Genesis DB: P]*/
+
+/*CREATE_DB result
+[ID: 16]
+[Status: 4]*/
+
+/*DELETE_DB (0x09)
+[Opcode: 1]
+[ID: 16]
+[CellIndex: 4]
+[DB Name Len: 4]
+[Secret Len: 4]
+[Genesis DB len: 4]
+[Genesis index: 4]|
+[DB Name: N]
+[Secret: M]
+[Genesis DB: P]*/
+
+/*DELETE_DB result
+[ID: 16]
+[Status: 4]*/
+
+/*READ_CELL (0x05)
 [Opcode: 1]
 [CellIndex: 4]
 [DB Name Len: 4]
