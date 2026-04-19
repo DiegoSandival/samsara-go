@@ -1,0 +1,152 @@
+package main
+
+import (
+	"encoding/binary"
+	"fmt"
+)
+
+/*DELETE (0x04)
+[Opcode: 4]
+[ID: 16]
+[CellIndex: 4]
+[DB Name Len: 4]
+[Key Len: 4]
+[Secret Len: 4] |
+[DB Name: N]
+[Key: M]
+[Secret: P]*/
+
+type DeleteReqMessage struct {
+	ID        []byte
+	CellIndex uint32
+	DBName    []byte
+	Key       []byte
+	Secret    []byte
+}
+
+func (p *ProtocolParser) DeleteReq(msg []byte) (DeleteReqMessage, error) {
+	var dm DeleteReqMessage
+
+	// Opcode(4) + ID(16) + CellIndex(4) + DBLen(4) + KeyLen(4) + SecretLen(4) = 36 bytes
+	if len(msg) < 36 {
+		return dm, fmt.Errorf("mensaje demasiado corto")
+	}
+
+	offset := 0
+	offset += 4 // opcode
+
+	dm.ID = make([]byte, 16)
+	copy(dm.ID, msg[offset:offset+16])
+	offset += 16
+
+	dm.CellIndex = binary.BigEndian.Uint32(msg[offset : offset+4])
+	offset += 4
+
+	dbNameLen := binary.BigEndian.Uint32(msg[offset : offset+4])
+	offset += 4
+
+	keyLen := binary.BigEndian.Uint32(msg[offset : offset+4])
+	offset += 4
+
+	secretLen := binary.BigEndian.Uint32(msg[offset : offset+4])
+	offset += 4
+
+	totalVariableLength := int(dbNameLen + keyLen + secretLen)
+	if len(msg) < offset+totalVariableLength {
+		return dm, fmt.Errorf("mensaje incompleto")
+	}
+
+	dm.DBName = make([]byte, dbNameLen)
+	copy(dm.DBName, msg[offset:offset+int(dbNameLen)])
+	offset += int(dbNameLen)
+
+	dm.Key = make([]byte, keyLen)
+	copy(dm.Key, msg[offset:offset+int(keyLen)])
+	offset += int(keyLen)
+
+	dm.Secret = make([]byte, secretLen)
+	copy(dm.Secret, msg[offset:offset+int(secretLen)])
+
+	return dm, nil
+}
+
+/*DELETE result
+[ID: 16]
+[Status: 4]*/
+
+type DeleteResult struct {
+	ID     []byte
+	Status int32
+}
+
+func (p *ProtocolParser) DeleteResult(msg []byte) (DeleteResult, error) {
+	var dr DeleteResult
+
+	if len(msg) < 20 {
+		return dr, fmt.Errorf("mensaje demasiado corto")
+	}
+
+	offset := 0
+
+	dr.ID = make([]byte, 16)
+	copy(dr.ID, msg[offset:offset+16])
+	offset += 16
+
+	dr.Status = int32(binary.BigEndian.Uint32(msg[offset : offset+4]))
+
+	return dr, nil
+}
+
+func (parser *ProtocolParser) testDelete() {
+
+	rawDeleteReqMsg := []byte{
+		// Opcode: 4
+		0x00, 0x00, 0x00, 0x04,
+		// ID: 16 bytes (16 letras 'G')
+		0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47,
+		0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47,
+		// Status: 1 (éxito)
+		0x00, 0x00, 0x00, 0x01,
+		// CellIndex: 42
+		0x00, 0x00, 0x00, 0x2A,
+		// Value: "deleted"
+		0x64, 0x65, 0x6C, 0x65, 0x74, 0x65, 0x64,
+		// Secret
+		0x73, 0x65, 0x63, 0x72, 0x65, 0x74,
+	}
+
+	deleteReq, err := parser.DeleteReq(rawDeleteReqMsg)
+	if err != nil {
+		fmt.Printf("Error parsing delete request: %v\n", err)
+		return
+	}
+
+	// Verificación del resultado de eliminación
+	fmt.Printf("Opcode: 4 (DELETE)\n")
+	fmt.Printf("Delete Req ID: %s\n", string(deleteReq.ID))
+	fmt.Printf("CellIndex: %d\n", deleteReq.CellIndex)
+	fmt.Printf("DBName: %s\n", string(deleteReq.DBName))
+	fmt.Printf("Key: %s\n", string(deleteReq.Key))
+	fmt.Printf("Secret: %s\n", string(deleteReq.Secret))
+	fmt.Println("--------------------------------------------------")
+
+	rawDeleteResultMsg := []byte{
+		// ID: 16 bytes (16 letras 'H')
+		0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48,
+		0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48,
+		// Status: 1 (éxito)
+		0x00, 0x00, 0x00, 0x01,
+	}
+
+	deleteResult, err := parser.DeleteResult(rawDeleteResultMsg)
+	if err != nil {
+		fmt.Printf("Error parsing delete result: %v\n", err)
+		return
+	}
+
+	// Verificación del resultado de eliminación
+	fmt.Printf("Opcode: 4 (DELETE Result)\n")
+	fmt.Printf("Delete Result ID: %s\n", string(deleteResult.ID))
+	fmt.Printf("Status: %d\n", deleteResult.Status)
+	fmt.Println("--------------------------------------------------")
+}
