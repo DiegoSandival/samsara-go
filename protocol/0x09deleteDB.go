@@ -89,5 +89,51 @@ func (p *ProtocolParser) DeleteDBResult(msg []byte) (DeleteDBResult, error) {
 }
 
 func (parser *ProtocolParser) testDeleteDB() {
-	// Aquí puedes agregar un mensaje de prueba para DELETE_DB y verificar su análisis
+	rawDeleteDBReqMsg := []byte{
+		0x00, 0x00, 0x00, 0x09, // Opcode
+		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, // ID
+		0x00, 0x00, 0x00, 0x01, // CellIndex
+		0x00, 0x00, 0x00, 0x04, // DB Name Len
+		0x00, 0x00, 0x00, 0x02, // Secret Len
+		0x00, 0x00, 0x00, 0x03, // X
+		0x00, 0x00, 0x00, 0x04, // Y
+		0x00, 0x00, 0x00, 0x05, // Z
+		0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x09, // ChildSalt
+		0x00, 0x00, 0x00, 0x04, // ChildSecret Len
+		0x0A, 0x0B, 0x0C, 0x0D, // DB Name
+		0x0E, 0x0F, 0x10, 0x11, // Secret
+		0x12, 0x13, 0x14, 0x15, // ChildSecret
+	}
+
+	readDeleteDBReq, err := parser.DeleteDBReq(rawDeleteDBReqMsg)
+	if err != nil {
+		fmt.Printf("Error al parsear DeleteDBReq: %v\n", err)
+	} else {
+		fmt.Println("DeleteDBReq parseado correctamente")
+	}
+
+	fmt.Printf("Opcode: 0x09 (DeleteDB)\n")
+	fmt.Printf("DeleteDB Req ID: %s\n", string(readDeleteDBReq.ID))
+	fmt.Printf("CellIndex: %d\n", readDeleteDBReq.CellIndex)
+	fmt.Printf("DBName: %s\n", string(readDeleteDBReq.DBName))
+	fmt.Printf("Secret: %s\n", string(readDeleteDBReq.Secret))
+	fmt.Println("--------------------------------------------------")
+
+	rawDeleteDBResultMsg := []byte{
+		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, // ID
+		0x00, 0x00, 0x00, 0x01, // Status
+		0x00, 0x00, 0x00, 0x2A, // CellIndex
+	}
+
+	readDeleteDBResult, err := parser.DeleteDBResult(rawDeleteDBResultMsg)
+	if err != nil {
+		fmt.Printf("Error al parsear DeleteDBResult: %v\n", err)
+	} else {
+		fmt.Println("DeleteDBResult parseado correctamente")
+	}
+
+	fmt.Printf("Opcode: 0x09 (DeleteDB Result)\n")
+	fmt.Printf("DeleteDB Result ID: %s\n", string(readDeleteDBResult.ID))
+	fmt.Printf("Status: %d\n", readDeleteDBResult.Status)
+	fmt.Println("--------------------------------------------------")
 }

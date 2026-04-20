@@ -93,5 +93,54 @@ func (p *ProtocolParser) CreateGenesisResult(msg []byte) (CreateGenesisResult, e
 }
 
 func (parser *ProtocolParser) testCreateGenesis() {
-	// Aquí puedes agregar un mensaje de prueba para CREATE_GENESIS y verificar su análisis
+	rawDiferirReqMsg := []byte{
+		0x00, 0x00, 0x00, 0x06, // Opcode
+		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, // ID
+		0x00, 0x00, 0x00, 0x04, // DB Name Len
+		0x00, 0x00, 0x00, 0x01, // CellIndex
+		0x00, 0x00, 0x00, 0x04, // ParentSecret Len
+		0x00, 0x00, 0x00, 0x02, // ChildGenome
+		0x00, 0x00, 0x00, 0x03, // X
+		0x00, 0x00, 0x00, 0x04, // Y
+		0x00, 0x00, 0x00, 0x05, // Z
+		0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x09, // ChildSalt
+		0x00, 0x00, 0x00, 0x04, // ChildSecret Len
+		0x0A, 0x0B, 0x0C, 0x0D, // DB Name
+		0x0E, 0x0F, 0x10, 0x11, // ParentSecret
+		0x12, 0x13, 0x14, 0x15, // ChildSecret
+	}
+
+	readDiferirReq, err := parser.DiferirReq(rawDiferirReqMsg)
+	if err != nil {
+		fmt.Printf("Error al parsear DiferirReq: %v\n", err)
+	} else {
+		fmt.Println("DiferirReq parseado correctamente")
+	}
+
+	fmt.Printf("Opcode: 0x06 (Diferir)\n")
+	fmt.Printf("Read Cell Req ID: %s\n", string(readDiferirReq.ID))
+	fmt.Printf("CellIndex: %d\n", readDiferirReq.CellIndex)
+	fmt.Printf("DBName: %s\n", string(readDiferirReq.DBName))
+	fmt.Printf("ParentSecret: %s\n", string(readDiferirReq.ParentSecret))
+	fmt.Printf("ChildSecret: %s\n", string(readDiferirReq.ChildSecret))
+	fmt.Println("--------------------------------------------------")
+
+	rawDiferirResultMsg := []byte{
+		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, // ID
+		0x00, 0x00, 0x00, 0x01, // Status
+		0x00, 0x00, 0x00, 0x2A, // CellIndex
+	}
+
+	readDiferirResult, err := parser.DiferirResult(rawDiferirResultMsg)
+	if err != nil {
+		fmt.Printf("Error al parsear DiferirResult: %v\n", err)
+	} else {
+		fmt.Println("DiferirResult parseado correctamente")
+	}
+
+	fmt.Printf("Opcode: 0x06 (Diferir Result)\n")
+	fmt.Printf("Diferir Result ID: %s\n", string(readDiferirResult.ID))
+	fmt.Printf("Status: %d\n", readDiferirResult.Status)
+	fmt.Printf("CellIndex: %d\n", readDiferirResult.CellIndex)
+	fmt.Println("--------------------------------------------------")
 }
