@@ -3,7 +3,7 @@ module github.com/DiegoSandival/samsara-go
 go 1.26.2
 
 require (
-	github.com/DiegoSandival/ouroboros-go v0.0.0-20260409210656-8aa100e31c04
+	github.com/DiegoSandival/ouroboros-go v0.0.0-20260417040107-ab6221740cd3
 	go.etcd.io/bbolt v1.4.3
 	lukechampine.com/blake3 v1.4.1
 )

@@ -113,6 +113,7 @@ type CellReadResult struct {
 
 func New(path string, maxRecords uint32) (*Store, error) {
 	db, err := ouroboros.OpenOuroborosDB(path, maxRecords)
+
 	if err != nil {
 		return nil, err
 	}

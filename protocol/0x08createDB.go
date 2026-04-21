@@ -96,6 +96,19 @@ func (p *ProtocolParser) CreateDBResult(msg []byte) (CreateDBResult, error) {
 
 	return cr, nil
 }
+
+func (parser *ProtocolParser) CreateDBResultByte(Id []byte, Status int32) []byte {
+
+	//convert status to bytes
+	statusBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(statusBytes, uint32(Status))
+
+	//concatenate ID and status
+	result := append(Id, statusBytes...)
+
+	return result
+}
+
 func (parser *ProtocolParser) testCreateDB() {
 	rawCreateDBReqMsg := []byte{
 		0x00, 0x00, 0x00, 0x08, // Opcode
