@@ -1,4 +1,4 @@
-package main
+package protocol
 
 // opcodes:
 // 0x01: READ
@@ -11,21 +11,5 @@ package main
 // 0x08: CREATE_DB
 // 0x09: DELETE_DB
 // 0x010: CREATE_GENESIS
-
-func main() {
-
-	parser := &ProtocolParser{}
-
-	parser.testRead()
-	//parser.testReadFree()
-	//parser.testWrite()
-	//parser.testDelete()
-	//parser.testReadCell()
-	//parser.testDiferir()
-	//parser.testCruzar()
-	//parser.testCreateDB()
-	//parser.testDeleteDB()
-	//parser.testCreateGenesis()
-}
 
 type ProtocolParser struct{}
