@@ -11,7 +11,8 @@ import (
 [DB Name Len: 4]
 [Secret Len: 4]
 [Genesis DB len: 4]
-[Genesis index: 4] |
+[Genesis index: 4]
+[DB Size: 4] |
 [DB Name: N]
 [Secret: M]
 [Genesis DB: P]*/
@@ -22,6 +23,7 @@ type CreateDBReqMessage struct {
 	Secret       []byte
 	GenesisDB    []byte
 	GenesisIndex uint32
+	DBSize       uint32
 }
 
 func (p *ProtocolParser) CreateDBReq(msg []byte) (CreateDBReqMessage, error) {
@@ -49,6 +51,9 @@ func (p *ProtocolParser) CreateDBReq(msg []byte) (CreateDBReqMessage, error) {
 	offset += 4
 
 	cm.GenesisIndex = binary.BigEndian.Uint32(msg[offset : offset+4])
+	offset += 4
+
+	cm.DBSize = binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
 
 	totalVariableLength := int(dbNameLen + secretLen + genesisDBLen)
@@ -116,6 +121,11 @@ func (parser *ProtocolParser) testCreateDB() {
 		0x00, 0x00, 0x00, 0x04, // DB Name Len
 		0x00, 0x00, 0x00, 0x04, // Secret Len
 		0x00, 0x00, 0x00, 0x04, // Genesis DB Len
+		0x00, 0x00, 0x00, 0x01, // Genesis Index
+		0x00, 0x00, 0x00, 0x64, // DB Size (100)
+		0x64, 0x62, 0x31, 0x32, // DB Name: "db12"
+		0x73, 0x65, 0x63, 0x72, // Secret: "secr"
+		0x67, 0x65, 0x6E, 0x31, // Genesis DB: "gen1"
 	}
 
 	readCreateDBReq, err := parser.CreateDBReq(rawCreateDBReqMsg)

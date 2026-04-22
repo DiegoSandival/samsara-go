@@ -1,7 +1,9 @@
 // router.go o dispatcher.go
 package main
 
-import protocol "github.com/DiegoSandival/samsara-go/protocol"
+import (
+	protocol "github.com/DiegoSandival/samsara-go/protocol"
+)
 
 // ProcessRequest es la función principal que tu servidor (TCP, HTTP, etc.) llamará.
 func ProcessRequest(msg []byte, parser *protocol.ProtocolParser, handler *CentralHandler) []byte {
@@ -11,17 +13,16 @@ func ProcessRequest(msg []byte, parser *protocol.ProtocolParser, handler *Centra
 		return []byte("error: mensaje muy corto")
 	}
 
-	// 2. Extraer el opcode (asumiendo que es el primer byte)
-	// Ajusta los índices si tu opcode está en otra posición (ej. msg[0:4])
-	opcode := msg[0]
-	payload := msg[1:]
-
 	// 3. Enrutar según el opcode
-	switch opcode {
+	switch parser.Opcode(msg) {
 	case 0x00:
-		return handler.CreateDB(parser, payload)
-	// case 0x01:
-	//     return handler.InsertData(parser, payload)
+		return handler.CreateDB(parser, msg)
+	case 0x01:
+		return handler.DelDB(parser, msg)
+	case 0x02:
+		return handler.Read(parser, msg)
+	case 0x03:
+		return handler.Write(parser, msg)
 	default:
 		// Opcode no soportado
 		return []byte("error: opcode desconocido")

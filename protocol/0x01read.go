@@ -102,6 +102,19 @@ type ReadResult struct {
 	Value     []byte
 }
 
+func (p *ProtocolParser) ReadResultBytes(id []byte, status int32, cellIndex uint32, value []byte) []byte {
+	result := make([]byte, 16+4+4+len(value))
+	offset := 0
+	copy(result[offset:offset+16], id)
+	offset += 16
+	binary.BigEndian.PutUint32(result[offset:offset+4], uint32(status))
+	offset += 4
+	binary.BigEndian.PutUint32(result[offset:offset+4], cellIndex)
+	offset += 4
+	copy(result[offset:], value)
+	return result
+}
+
 func (p *ProtocolParser) ReadResult(msg []byte) (ReadResult, error) {
 	var rr ReadResult
 

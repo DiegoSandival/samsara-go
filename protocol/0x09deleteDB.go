@@ -88,6 +88,18 @@ func (p *ProtocolParser) DeleteDBResult(msg []byte) (DeleteDBResult, error) {
 	return dr, nil
 }
 
+func (p *ProtocolParser) DeleteDBResultBytes(id []byte, status int32) []byte {
+	msg := make([]byte, 20)
+	offset := 0
+
+	copy(msg[offset:offset+16], id)
+	offset += 16
+
+	binary.BigEndian.PutUint32(msg[offset:offset+4], uint32(status))
+
+	return msg
+}
+
 func (parser *ProtocolParser) testDeleteDB() {
 	rawDeleteDBReqMsg := []byte{
 		0x00, 0x00, 0x00, 0x09, // Opcode

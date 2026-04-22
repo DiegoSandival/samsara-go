@@ -1,9 +1,5 @@
 package protocol
 
-import (
-	"fmt"
-)
-
 /*
 READ (0x01)
 [Opcode: 4]
@@ -20,15 +16,11 @@ type OpcodeReqMessage struct {
 	Opcode []byte
 }
 
-func (p *ProtocolParser) Opcode(msg []byte) (OpcodeReqMessage, error) {
+func (p *ProtocolParser) Opcode(msg []byte) byte {
 	var rm OpcodeReqMessage
 
-	// retornamos el opcode (4 bytes)
-	if len(msg) < 4 {
-		return rm, fmt.Errorf("mensaje demasiado corto para el opcode")
-	}
 	rm.Opcode = make([]byte, 4)
 	copy(rm.Opcode, msg[:4])
 
-	return rm, nil
+	return rm.Opcode[0]
 }
