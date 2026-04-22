@@ -1,11 +1,12 @@
 package protocol
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 )
 
-/*READ_FREE (0x02)
+/*READ_FREE (0x04)
 [Opcode: 4]
 [ID: 16]
 [DB Name Len: 4]
@@ -17,6 +18,21 @@ type ReadFreeReqMessage struct {
 	ID     []byte
 	DBName []byte
 	Key    []byte
+}
+
+func (p *ProtocolParser) ReadFreeReqBytes(dbName []byte, key []byte) []byte {
+
+	ID := make([]byte, 16)
+	rand.Read(ID)
+
+	result := make([]byte, 4+16+4+4+len(dbName)+len(key))
+	binary.BigEndian.PutUint32(result[0:4], 0x04) // Opcode
+	copy(result[4:20], ID)
+	binary.BigEndian.PutUint32(result[20:24], uint32(len(dbName)))
+	binary.BigEndian.PutUint32(result[24:28], uint32(len(key)))
+	copy(result[28:28+len(dbName)], dbName)
+	copy(result[28+len(dbName):], key)
+	return result
 }
 
 func (p *ProtocolParser) ReadFreeReq(msg []byte) (ReadFreeReqMessage, error) {
@@ -94,11 +110,19 @@ func (p *ProtocolParser) ReadFreeResult(msg []byte) (ReadFreeResult, error) {
 	return rr, nil
 }
 
+func (p *ProtocolParser) ReadFreeResultBytes(ID []byte, status int32, value []byte) []byte {
+	result := make([]byte, 16+4+len(value))
+	copy(result[0:16], ID)
+	binary.BigEndian.PutUint32(result[16:20], uint32(status))
+	copy(result[20:], value)
+	return result
+}
+
 func (parser *ProtocolParser) testReadFree() {
 
 	rawReadFreeReqMsg := []byte{
-		// Opcode: 2
-		0x00, 0x00, 0x00, 0x02,
+		// Opcode: 0x04
+		0x00, 0x00, 0x00, 0x04,
 		// ID: 16 bytes (16 letras 'C')
 		0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43,
 		0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43,
@@ -119,7 +143,7 @@ func (parser *ProtocolParser) testReadFree() {
 	}
 
 	// Verificación del resultado de lectura libre
-	fmt.Printf("Opcode: 2 (READ FREE)\n")
+	fmt.Printf("Opcode: 4 (READ FREE)\n")
 	fmt.Printf("Read Free Req ID: %s\n", string(readFreeReq.ID))
 	fmt.Printf("DBName: %s\n", string(readFreeReq.DBName))
 	fmt.Printf("Key: %s\n", string(readFreeReq.Key))
@@ -142,7 +166,7 @@ func (parser *ProtocolParser) testReadFree() {
 	}
 
 	// Verificación del resultado de lectura libre
-	fmt.Printf("Opcode: 2 (READ FREE Result)\n")
+	fmt.Printf("Opcode: 4 (READ FREE Result)\n")
 	fmt.Printf("Read Free Result ID: %s\n", string(readFreeResult.ID))
 	fmt.Printf("Status: %d\n", readFreeResult.Status)
 	fmt.Printf("Value: %s\n", string(readFreeResult.Value))

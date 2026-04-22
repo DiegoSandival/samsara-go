@@ -17,10 +17,10 @@ type OpcodeReqMessage struct {
 }
 
 func (p *ProtocolParser) Opcode(msg []byte) byte {
-	var rm OpcodeReqMessage
+	//extrael el ultimo byte del opcode
+	//0x00, 0x00, 0x00, 0x03,
+	//a   , b   , c   , d   ,
+	//opcode = d
 
-	rm.Opcode = make([]byte, 4)
-	copy(rm.Opcode, msg[:4])
-
-	return rm.Opcode[0]
+	return msg[3]
 }

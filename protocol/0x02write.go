@@ -1,11 +1,12 @@
 package protocol
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 )
 
-/*WRITE (0x03)
+/*WRITE (0x02)
 [Opcode: 4]
 [ID: 16]
 [CellIndex: 4]
@@ -80,6 +81,27 @@ func (p *ProtocolParser) WriteReq(msg []byte) (WriteReqMessage, error) {
 	return wm, nil
 }
 
+func (p *ProtocolParser) WriteReqBytes(cellIndex uint32, dbName, key, value, secret []byte) []byte {
+
+	// Generar ID aleatorio de 16 bytes
+	ID := make([]byte, 16)
+	rand.Read(ID)
+
+	msg := make([]byte, 4+16+4+4+4+4+4+len(dbName)+len(key)+len(value)+len(secret))
+	binary.BigEndian.PutUint32(msg[0:4], 0x02)
+	copy(msg[4:20], ID)
+	binary.BigEndian.PutUint32(msg[20:24], cellIndex)
+	binary.BigEndian.PutUint32(msg[24:28], uint32(len(dbName)))
+	binary.BigEndian.PutUint32(msg[28:32], uint32(len(key)))
+	binary.BigEndian.PutUint32(msg[32:36], uint32(len(value)))
+	binary.BigEndian.PutUint32(msg[36:40], uint32(len(secret)))
+	copy(msg[40:40+len(dbName)], dbName)
+	copy(msg[40+len(dbName):40+len(dbName)+len(key)], key)
+	copy(msg[40+len(dbName)+len(key):40+len(dbName)+len(key)+len(value)], value)
+	copy(msg[40+len(dbName)+len(key)+len(value):], secret)
+	return msg
+}
+
 /*WRITE result
 [ID: 16]
 [Status: 4]*/
@@ -119,8 +141,8 @@ func (p *ProtocolParser) WriteResult(msg []byte) (WriteResult, error) {
 func (parser *ProtocolParser) testWrite() {
 
 	rawWriteReqMsg := []byte{
-		// Opcode: 3
-		0x00, 0x00, 0x00, 0x03,
+		// Opcode: 0x02
+		0x00, 0x00, 0x00, 0x02,
 		// ID: 16 bytes (16 letras 'E')
 		0x45, 0x45, 0x45, 0x45, 0x45, 0x45, 0x45, 0x45,
 		0x45, 0x45, 0x45, 0x45, 0x45, 0x45, 0x45, 0x45,
@@ -150,7 +172,7 @@ func (parser *ProtocolParser) testWrite() {
 		return
 	}
 	// Verificación del resultado de escritura
-	fmt.Printf("Opcode: 3 (WRITE)\n")
+	fmt.Printf("Opcode: 0x02 (WRITE)\n")
 	fmt.Printf("Write Req ID: %s\n", string(writeReq.ID))
 	fmt.Printf("CellIndex: %d\n", writeReq.CellIndex)
 	fmt.Printf("DBName: %s\n", string(writeReq.DBName))
@@ -173,7 +195,7 @@ func (parser *ProtocolParser) testWrite() {
 		return
 	}
 	// Verificación del resultado de escritura
-	fmt.Printf("Opcode: 3 (WRITE Result)\n")
+	fmt.Printf("Opcode: 0x02 (WRITE Result)\n")
 	fmt.Printf("Write Result ID: %s\n", string(writeResult.ID))
 	fmt.Printf("Status: %d\n", writeResult.Status)
 	fmt.Println("--------------------------------------------------")

@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-/*DELETE (0x04)
+/*DELETE (0x05)
 [Opcode: 4]
 [ID: 16]
 [CellIndex: 4]
@@ -100,8 +100,8 @@ func (p *ProtocolParser) DeleteResult(msg []byte) (DeleteResult, error) {
 func (parser *ProtocolParser) testDelete() {
 
 	rawDeleteReqMsg := []byte{
-		// Opcode: 4
-		0x00, 0x00, 0x00, 0x04,
+		// Opcode: 0x05
+		0x00, 0x00, 0x00, 0x05,
 		// ID: 16 bytes (16 letras 'G')
 		0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47,
 		0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47,
@@ -128,7 +128,7 @@ func (parser *ProtocolParser) testDelete() {
 	}
 
 	// Verificación del resultado de eliminación
-	fmt.Printf("Opcode: 4 (DELETE)\n")
+	fmt.Printf("Opcode: 0x05 (DELETE)\n")
 	fmt.Printf("Delete Req ID: %s\n", string(deleteReq.ID))
 	fmt.Printf("CellIndex: %d\n", deleteReq.CellIndex)
 	fmt.Printf("DBName: %s\n", string(deleteReq.DBName))
@@ -151,7 +151,7 @@ func (parser *ProtocolParser) testDelete() {
 	}
 
 	// Verificación del resultado de eliminación
-	fmt.Printf("Opcode: 4 (DELETE Result)\n")
+	fmt.Printf("Opcode: 0x05 (DELETE Result)\n")
 	fmt.Printf("Delete Result ID: %s\n", string(deleteResult.ID))
 	fmt.Printf("Status: %d\n", deleteResult.Status)
 	fmt.Println("--------------------------------------------------")

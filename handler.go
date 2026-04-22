@@ -3,6 +3,7 @@ package samsara
 
 import (
 	"crypto/rand"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -90,14 +91,14 @@ func (h *CentralHandler) CreateDB(parser *protocol.ProtocolParser, payload []byt
 	_, err = rand.Read(salt[:])
 	if err != nil {
 		// Este error es extremadamente raro, pero debe manejarse
-		return parser.CreateDBResultByte(req.ID, 2)
+		return parser.CreateDBResultBytes(req.ID, 2)
 	}
 
 	cell := store.NewCellWithSecret(salt, req.Secret, ouroboros.GenomaGenesis, 0, 0, 0)
 
 	store.DB().Append(cell)
 
-	return parser.CreateDBResultByte(req.ID, 1)
+	return parser.CreateDBResultBytes(req.ID, 1)
 
 }
 
@@ -172,22 +173,23 @@ func (s *CentralHandler) Read(parser *protocol.ProtocolParser, payload []byte) [
 func (s *CentralHandler) Write(parser *protocol.ProtocolParser, payload []byte) []byte {
 	req, err := parser.WriteReq(payload)
 	if err != nil {
-		return parser.WriteResultBytes(req.ID, 2, 0, nil)
+		return parser.WriteResultBytes(req.ID, 10, 0, nil)
 	}
 
 	store, exists := s.GetStore(string(req.DBName))
 	if !exists {
-		return parser.WriteResultBytes(req.ID, 2, 0, nil)
+		return parser.WriteResultBytes(req.ID, 11, 0, nil)
 	}
 
+	log.Printf("Intentando resolver cellIndex %d con secreto %s\n", req.CellIndex, string(req.Secret))
 	active, ok := store.resolveCell(req.CellIndex, req.Secret)
 	if !ok {
-		return parser.WriteResultBytes(req.ID, 2, 0, nil)
+		return parser.WriteResultBytes(req.ID, 12, 0, nil)
 	}
 
 	membrane, exists, err := store.getMembrane(string(req.Key))
 	if err != nil {
-		return parser.WriteResultBytes(req.ID, 2, 0, nil)
+		return parser.WriteResultBytes(req.ID, 13, 0, nil)
 	}
 
 	if !exists {
@@ -196,12 +198,12 @@ func (s *CentralHandler) Write(parser *protocol.ProtocolParser, payload []byte) 
 			Value:      cloneBytes(req.Value),
 		})
 		if err != nil {
-			return parser.WriteResultBytes(req.ID, 2, 0, nil)
+			return parser.WriteResultBytes(req.ID, 14, 0, nil)
 		}
 
 		newIndex, refreshed := store.refresh(active.index, req.Secret)
 		if !refreshed {
-			return parser.WriteResultBytes(req.ID, 2, 0, nil)
+			return parser.WriteResultBytes(req.ID, 15, 0, nil)
 		}
 
 		return parser.WriteResultBytes(req.ID, 1, newIndex, nil)
@@ -210,19 +212,44 @@ func (s *CentralHandler) Write(parser *protocol.ProtocolParser, payload []byte) 
 	requiredFlag := store.permissionFlag(membrane.OwnerIndex, active.index, ouroboros.EscribirSelf, ouroboros.EscribirAny)
 
 	if active.cell.Genoma&requiredFlag == 0 {
-		return parser.WriteResultBytes(req.ID, 2, active.index, nil)
+		return parser.WriteResultBytes(req.ID, 16, active.index, nil)
 	}
 
 	membrane.Value = cloneBytes(req.Value)
 	if err := store.putMembrane(string(req.Key), membrane); err != nil {
-		return parser.WriteResultBytes(req.ID, 2, 0, nil)
+		return parser.WriteResultBytes(req.ID, 17, 0, nil)
 	}
 
 	newIndex, refreshed := store.refresh(active.index, req.Secret)
 	if !refreshed {
-		return parser.WriteResultBytes(req.ID, 2, 0, nil)
+		return parser.WriteResultBytes(req.ID, 18, 0, nil)
 	}
 
 	return parser.WriteResultBytes(req.ID, 1, newIndex, nil)
+
+}
+
+func (s *CentralHandler) ReadFree(parser *protocol.ProtocolParser, payload []byte) []byte {
+
+	req, err := parser.ReadFreeReq(payload)
+	if err != nil {
+		return parser.ReadFreeResultBytes(req.ID, 2, nil)
+	}
+
+	store, exists := s.GetStore(string(req.DBName))
+	if !exists {
+		return parser.ReadFreeResultBytes(req.ID, 2, nil)
+	}
+
+	membrane, exists, err := store.getMembrane(string(req.Key))
+	if err != nil {
+		return parser.ReadFreeResultBytes(req.ID, 2, nil)
+	}
+
+	if !exists {
+		return parser.ReadFreeResultBytes(req.ID, 3, nil)
+	}
+
+	return parser.ReadFreeResultBytes(req.ID, 1, cloneBytes(membrane.Value))
 
 }

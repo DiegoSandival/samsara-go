@@ -1,36 +1,58 @@
 package protocol
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 )
 
-/*CREATE_DB (0x08)
+/*CREATE_DB (0x00)
 [Opcode: 4]
 [ID: 16]
 [DB Name Len: 4]
 [Secret Len: 4]
-[Genesis DB len: 4]
-[Genesis index: 4]
 [DB Size: 4] |
 [DB Name: N]
-[Secret: M]
-[Genesis DB: P]*/
+[Secret: M]*/
 
 type CreateDBReqMessage struct {
-	ID           []byte
-	DBName       []byte
-	Secret       []byte
-	GenesisDB    []byte
-	GenesisIndex uint32
-	DBSize       uint32
+	ID     []byte
+	DBName []byte
+	Secret []byte
+	DBSize uint32
+}
+
+func (p *ProtocolParser) CreateDBReqBytes(DBName string, Secret string, DBSize uint32) ([]byte, error) {
+	oPcode := uint32(0x00)
+	// Generar ID aleatorio de 16 bytes
+	ID := make([]byte, 16)
+	_, err := rand.Read(ID)
+	if err != nil {
+		return nil, fmt.Errorf("error generando ID: %v", err)
+	}
+
+	dbNameBytes := []byte(DBName)
+	secretBytes := []byte(Secret)
+	dbNameLen := uint32(len(dbNameBytes))
+	secretLen := uint32(len(secretBytes))
+	// Crear el mensaje concatenando todos los campos
+	message := make([]byte, 4+16+4+4+4+dbNameLen+secretLen)
+	binary.BigEndian.PutUint32(message[0:4], oPcode) // Opcode
+	copy(message[4:20], ID)
+	binary.BigEndian.PutUint32(message[20:24], dbNameLen)
+	binary.BigEndian.PutUint32(message[24:28], secretLen)
+	binary.BigEndian.PutUint32(message[28:32], DBSize)
+	copy(message[32:32+dbNameLen], dbNameBytes)
+	copy(message[32+dbNameLen:32+dbNameLen+secretLen], secretBytes)
+
+	return message, nil
 }
 
 func (p *ProtocolParser) CreateDBReq(msg []byte) (CreateDBReqMessage, error) {
 	var cm CreateDBReqMessage
 
-	// Opcode(4) + ID(16) + DBLen(4) + SecretLen(4) + GenesisDBLen(4) + GenesisIndex(4) = 36 bytes
-	if len(msg) < 36 {
+	// Opcode(4) + ID(16) + DBLen(4) + SecretLen(4) + DBSize(4) = 32 bytes
+	if len(msg) < 32 {
 		return cm, fmt.Errorf("mensaje demasiado corto")
 	}
 
@@ -47,19 +69,8 @@ func (p *ProtocolParser) CreateDBReq(msg []byte) (CreateDBReqMessage, error) {
 	secretLen := binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
 
-	genesisDBLen := binary.BigEndian.Uint32(msg[offset : offset+4])
-	offset += 4
-
-	cm.GenesisIndex = binary.BigEndian.Uint32(msg[offset : offset+4])
-	offset += 4
-
 	cm.DBSize = binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
-
-	totalVariableLength := int(dbNameLen + secretLen + genesisDBLen)
-	if len(msg) < offset+totalVariableLength {
-		return cm, fmt.Errorf("mensaje incompleto")
-	}
 
 	cm.DBName = make([]byte, dbNameLen)
 	copy(cm.DBName, msg[offset:offset+int(dbNameLen)])
@@ -68,9 +79,6 @@ func (p *ProtocolParser) CreateDBReq(msg []byte) (CreateDBReqMessage, error) {
 	cm.Secret = make([]byte, secretLen)
 	copy(cm.Secret, msg[offset:offset+int(secretLen)])
 	offset += int(secretLen)
-
-	cm.GenesisDB = make([]byte, genesisDBLen)
-	copy(cm.GenesisDB, msg[offset:offset+int(genesisDBLen)])
 
 	return cm, nil
 }
@@ -102,7 +110,7 @@ func (p *ProtocolParser) CreateDBResult(msg []byte) (CreateDBResult, error) {
 	return cr, nil
 }
 
-func (parser *ProtocolParser) CreateDBResultByte(Id []byte, Status int32) []byte {
+func (parser *ProtocolParser) CreateDBResultBytes(Id []byte, Status int32) []byte {
 
 	//convert status to bytes
 	statusBytes := make([]byte, 4)
@@ -116,16 +124,13 @@ func (parser *ProtocolParser) CreateDBResultByte(Id []byte, Status int32) []byte
 
 func (parser *ProtocolParser) testCreateDB() {
 	rawCreateDBReqMsg := []byte{
-		0x00, 0x00, 0x00, 0x08, // Opcode
+		0x00, 0x00, 0x00, 0x00, // Opcode
 		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, // ID
 		0x00, 0x00, 0x00, 0x04, // DB Name Len
 		0x00, 0x00, 0x00, 0x04, // Secret Len
-		0x00, 0x00, 0x00, 0x04, // Genesis DB Len
-		0x00, 0x00, 0x00, 0x01, // Genesis Index
 		0x00, 0x00, 0x00, 0x64, // DB Size (100)
 		0x64, 0x62, 0x31, 0x32, // DB Name: "db12"
 		0x73, 0x65, 0x63, 0x72, // Secret: "secr"
-		0x67, 0x65, 0x6E, 0x31, // Genesis DB: "gen1"
 	}
 
 	readCreateDBReq, err := parser.CreateDBReq(rawCreateDBReqMsg)
@@ -135,12 +140,10 @@ func (parser *ProtocolParser) testCreateDB() {
 		fmt.Println("CreateDBReq parseado correctamente")
 	}
 
-	fmt.Printf("Opcode: 0x08 (CreateDB)\n")
+	fmt.Printf("Opcode: 0x00 (CreateDB)\n")
 	fmt.Printf("CreateDB Req ID: %s\n", string(readCreateDBReq.ID))
 	fmt.Printf("DBName: %s\n", string(readCreateDBReq.DBName))
 	fmt.Printf("Secret: %s\n", string(readCreateDBReq.Secret))
-	fmt.Printf("GenesisDB: %s\n", string(readCreateDBReq.GenesisDB))
-	fmt.Printf("GenesisIndex: %d\n", readCreateDBReq.GenesisIndex)
 	fmt.Println("--------------------------------------------------")
 
 	rawCreateDBResultMsg := []byte{
@@ -155,7 +158,7 @@ func (parser *ProtocolParser) testCreateDB() {
 		fmt.Println("CreateDBResult parseado correctamente")
 	}
 
-	fmt.Printf("Opcode: 0x08 (CreateDB Result)\n")
+	fmt.Printf("Opcode: 0x00 (CreateDB Result)\n")
 	fmt.Printf("CreateDB Result ID: %s\n", string(readCreateDBResult.ID))
 	fmt.Printf("Status: %d\n", readCreateDBResult.Status)
 	fmt.Println("--------------------------------------------------")

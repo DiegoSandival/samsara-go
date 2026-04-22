@@ -20,9 +20,12 @@ func ProcessRequest(msg []byte, parser *protocol.ProtocolParser, handler *Centra
 	case 0x01:
 		return handler.DelDB(parser, msg)
 	case 0x02:
-		return handler.Read(parser, msg)
-	case 0x03:
 		return handler.Write(parser, msg)
+	case 0x03:
+		return handler.Read(parser, msg)
+	case 0x04:
+		return handler.ReadFree(parser, msg)
+
 	default:
 		// Opcode no soportado
 		return []byte("error: opcode desconocido")

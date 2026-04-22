@@ -1,12 +1,13 @@
 package protocol
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 )
 
 /*
-READ (0x01)
+READ (0x03)
 [Opcode: 4]
 [ID: 16]
 [CellIndex: 4]
@@ -115,6 +116,24 @@ func (p *ProtocolParser) ReadResultBytes(id []byte, status int32, cellIndex uint
 	return result
 }
 
+func (p *ProtocolParser) ReadReqBytes(cellIndex uint32, dbName, key, secret []byte) []byte {
+
+	// Generar ID aleatorio de 16 bytes
+	ID := make([]byte, 16)
+	rand.Read(ID)
+	msg := make([]byte, 4+16+4+4+4+4+len(dbName)+len(key)+len(secret))
+	binary.BigEndian.PutUint32(msg[0:4], 0x03)
+	copy(msg[4:20], ID)
+	binary.BigEndian.PutUint32(msg[20:24], cellIndex)
+	binary.BigEndian.PutUint32(msg[24:28], uint32(len(dbName)))
+	binary.BigEndian.PutUint32(msg[28:32], uint32(len(key)))
+	binary.BigEndian.PutUint32(msg[32:36], uint32(len(secret)))
+	copy(msg[36:36+len(dbName)], dbName)
+	copy(msg[36+len(dbName):36+len(dbName)+len(key)], key)
+	copy(msg[36+len(dbName)+len(key):36+len(dbName)+len(key)+len(secret)], secret)
+	return msg
+}
+
 func (p *ProtocolParser) ReadResult(msg []byte) (ReadResult, error) {
 	var rr ReadResult
 
@@ -152,8 +171,8 @@ func (p *ProtocolParser) ReadResult(msg []byte) (ReadResult, error) {
 func (parser *ProtocolParser) testRead() {
 
 	rawReadReqMsg := []byte{
-		// Opcode: 1
-		0x00, 0x00, 0x00, 0x01,
+		// Opcode: 0x03
+		0x00, 0x00, 0x00, 0x03,
 		// ID: 16 bytes (puedes usar cualquier cosa, aquí son 16 letras 'A')
 		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
 		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
@@ -180,7 +199,7 @@ func (parser *ProtocolParser) testRead() {
 	}
 
 	// Verificación
-	fmt.Printf("Opcode: 1 (READ)\n")
+	fmt.Printf("Opcode: 0x03 (READ)\n")
 	fmt.Printf("ID: %s\n", string(result.ID))
 	fmt.Printf("CellIndex: %d\n", result.CellIndex)
 	fmt.Printf("DBName: %s\n", string(result.DBName))
@@ -207,7 +226,7 @@ func (parser *ProtocolParser) testRead() {
 	}
 
 	// Verificación del resultado de lectura
-	fmt.Printf("Opcode: 1 (READ Result)\n")
+	fmt.Printf("Opcode: 0x03 (READ Result)\n")
 	fmt.Printf("Read Result ID: %s\n", string(readResult.ID))
 	fmt.Printf("Status: %d\n", readResult.Status)
 	fmt.Printf("CellIndex: %d\n", readResult.CellIndex)
