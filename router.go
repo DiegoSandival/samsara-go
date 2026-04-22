@@ -1,5 +1,5 @@
 // router.go o dispatcher.go
-package main
+package samsara
 
 import (
 	protocol "github.com/DiegoSandival/samsara-go/protocol"

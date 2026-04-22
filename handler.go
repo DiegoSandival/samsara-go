@@ -1,5 +1,5 @@
 // handler.go
-package main
+package samsara
 
 import (
 	"crypto/rand"

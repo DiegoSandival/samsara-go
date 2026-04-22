@@ -1,5 +1,5 @@
 // store.go
-package main
+package samsara
 
 import (
 	"bytes"
@@ -367,4 +367,22 @@ func (s *Store) putMembrane(key string, membrane Membrane) error {
 
 		return bucket.Put([]byte(key), encoded)
 	})
+}
+func (s *Store) Close() error {
+	if s == nil {
+		return nil
+	}
+
+	var closeErr error
+	if s.kv != nil {
+		closeErr = errors.Join(closeErr, s.kv.Close())
+	}
+	if s.db != nil {
+		closeErr = errors.Join(closeErr, s.db.Close())
+	}
+	if s.tempKVPath != "" {
+		closeErr = errors.Join(closeErr, os.Remove(s.tempKVPath))
+	}
+
+	return closeErr
 }
