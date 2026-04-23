@@ -359,3 +359,31 @@ func (s *CentralHandler) Diferir(parser *protocol.ProtocolParser, payload []byte
 
 	return parser.DiferirResultBytes(req.ID, 1, childIndex)
 }
+
+func (s *CentralHandler) Cruzar(parser *protocol.ProtocolParser, payload []byte) []byte {
+
+	req, err := parser.CruzarReq(payload)
+	if err != nil {
+		return parser.CruzarResultBytes(req.ID, 2, 0)
+	}
+
+	store, exists := s.GetStore(string(req.DBName))
+	if !exists {
+		return parser.CruzarResultBytes(req.ID, 3, 0)
+	}
+
+	active, ok := store.resolveCell(req.CellIndexA, req.SecretA)
+	if !ok {
+		return parser.CruzarResultBytes(req.ID, 4, 0)
+	}
+
+	if active.cell.Genoma&req.ChildGenome != req.ChildGenome {
+		return parser.CruzarResultBytes(req.ID, 16, active.index)
+	}
+
+	childCell := store.NewCellWithSecret([16]byte{}, req.ChildSecret, req.ChildGenome, req.X, req.Y, req.Z)
+
+	childIndex, _ := store.DB().Append(childCell)
+
+	return parser.CruzarResultBytes(req.ID, 1, childIndex)
+}

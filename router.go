@@ -31,8 +31,8 @@ func ProcessRequest(msg []byte, parser *protocol.ProtocolParser, handler *Centra
 		return handler.ReadCell(parser, msg)
 	case 0x07:
 		return handler.Diferir(parser, msg)
-	//case 0x08:
-	//return handler.Cruzar(parser, msg)
+	case 0x08:
+		return handler.Cruzar(parser, msg)
 
 	default:
 		// Opcode no soportado
