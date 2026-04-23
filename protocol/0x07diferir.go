@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 )
@@ -22,16 +23,55 @@ import (
 [ChildSecret: P]*/
 
 type DiferirReqMessage struct {
-	ID           []byte
-	DBName       []byte
-	CellIndex    uint32
-	ParentSecret []byte
-	ChildGenome  uint32
-	X            uint32
-	Y            uint32
-	Z            uint32
-	ChildSalt    [16]byte
-	ChildSecret  []byte
+	ID          []byte
+	DBName      []byte
+	CellIndex   uint32
+	Secret      []byte
+	ChildGenome uint32
+	X           uint32
+	Y           uint32
+	Z           uint32
+	ChildSecret []byte
+}
+
+func (p *ProtocolParser) DiferirReqBytes(dbName, parentSecret, childSecret []byte, cellIndex uint32, childGenome uint32, x uint32, y uint32, z uint32) []byte {
+	dbNameLen := uint32(len(dbName))
+	parentSecretLen := uint32(len(parentSecret))
+	childSecretLen := uint32(len(childSecret))
+
+	ID := make([]byte, 16)
+	rand.Read(ID)
+
+	totalLen := 4 + 16 + 4 + 4 + 4 + 4 + 4 + 4 + 16 + 4 + dbNameLen + parentSecretLen + childSecretLen
+	msg := make([]byte, totalLen)
+	offset := 0
+	binary.BigEndian.PutUint32(msg[offset:offset+4], 0x06) // Opcode
+	offset += 4
+	copy(msg[offset:offset+16], ID)
+	offset += 16
+	binary.BigEndian.PutUint32(msg[offset:offset+4], dbNameLen)
+	offset += 4
+	binary.BigEndian.PutUint32(msg[offset:offset+4], cellIndex)
+	offset += 4
+	binary.BigEndian.PutUint32(msg[offset:offset+4], parentSecretLen)
+	offset += 4
+	binary.BigEndian.PutUint32(msg[offset:offset+4], childGenome)
+	offset += 4
+	binary.BigEndian.PutUint32(msg[offset:offset+4], x)
+	offset += 4
+	binary.BigEndian.PutUint32(msg[offset:offset+4], y)
+	offset += 4
+	binary.BigEndian.PutUint32(msg[offset:offset+4], z)
+	offset += 4
+	binary.BigEndian.PutUint32(msg[offset:offset+4], childSecretLen)
+	offset += 4
+	copy(msg[offset:offset+int(dbNameLen)], dbName)
+	offset += int(dbNameLen)
+	copy(msg[offset:offset+int(parentSecretLen)], parentSecret)
+	offset += int(parentSecretLen)
+	copy(msg[offset:offset+int(childSecretLen)], childSecret)
+
+	return msg
 }
 
 func (p *ProtocolParser) DiferirReq(msg []byte) (DiferirReqMessage, error) {
@@ -70,9 +110,6 @@ func (p *ProtocolParser) DiferirReq(msg []byte) (DiferirReqMessage, error) {
 	dm.Z = binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
 
-	copy(dm.ChildSalt[:], msg[offset:offset+16])
-	offset += 16
-
 	childSecretLen := binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
 
@@ -85,8 +122,8 @@ func (p *ProtocolParser) DiferirReq(msg []byte) (DiferirReqMessage, error) {
 	copy(dm.DBName, msg[offset:offset+int(dbNameLen)])
 	offset += int(dbNameLen)
 
-	dm.ParentSecret = make([]byte, parentSecretLen)
-	copy(dm.ParentSecret, msg[offset:offset+int(parentSecretLen)])
+	dm.Secret = make([]byte, parentSecretLen)
+	copy(dm.Secret, msg[offset:offset+int(parentSecretLen)])
 	offset += int(parentSecretLen)
 
 	dm.ChildSecret = make([]byte, childSecretLen)
@@ -127,6 +164,22 @@ func (p *ProtocolParser) DiferirResult(msg []byte) (DiferirResult, error) {
 	return dr, nil
 }
 
+func (p *ProtocolParser) DiferirResultBytes(ID []byte, status int32, cellIndex uint32) []byte {
+	totalLen := 16 + 4 + 4
+	msg := make([]byte, totalLen)
+	offset := 0
+
+	copy(msg[offset:offset+16], ID)
+	offset += 16
+
+	binary.BigEndian.PutUint32(msg[offset:offset+4], uint32(status))
+	offset += 4
+
+	binary.BigEndian.PutUint32(msg[offset:offset+4], cellIndex)
+
+	return msg
+}
+
 func (parser *ProtocolParser) testDiferir() {
 
 	rawDiferirReqMsg := []byte{
@@ -157,7 +210,7 @@ func (parser *ProtocolParser) testDiferir() {
 	fmt.Printf("Read Cell Req ID: %s\n", string(readDiferirReq.ID))
 	fmt.Printf("CellIndex: %d\n", readDiferirReq.CellIndex)
 	fmt.Printf("DBName: %s\n", string(readDiferirReq.DBName))
-	fmt.Printf("ParentSecret: %s\n", string(readDiferirReq.ParentSecret))
+	fmt.Printf("Secret: %s\n", string(readDiferirReq.Secret))
 	fmt.Printf("ChildSecret: %s\n", string(readDiferirReq.ChildSecret))
 	fmt.Println("--------------------------------------------------")
 
