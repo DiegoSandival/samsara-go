@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 )
@@ -59,6 +60,44 @@ func (p *ProtocolParser) DeleteDBReq(msg []byte) (DeleteDBReqMessage, error) {
 	copy(dm.Secret, msg[offset:offset+int(secretLen)])
 
 	return dm, nil
+}
+
+func (p *ProtocolParser) DeleteDBReqBytes(dbName string, secret string, cellIndex uint32) []byte {
+	dbNameBytes := []byte(dbName)
+	secretBytes := []byte(secret)
+	dbNameLen := uint32(len(dbNameBytes))
+	secretLen := uint32(len(secretBytes))
+	msg := make([]byte, 4+16+4+4+4+len(dbNameBytes)+len(secretBytes))
+	offset := 0
+	// Opcode
+	binary.BigEndian.PutUint32(msg[offset:offset+4], 0x01)
+	offset += 4
+	// ID (16 bytes aleatorios)
+	randomID := make([]byte, 16)
+	_, err := rand.Read(randomID)
+	if err != nil {
+		// En caso de error, podemos usar un ID fijo o manejarlo de otra forma
+		copy(randomID, []byte("default-id-1234"))
+	}
+	copy(msg[offset:offset+16], randomID)
+	offset += 16
+	// CellIndex
+	binary.BigEndian.PutUint32(msg[offset:offset+4], cellIndex)
+	offset += 4
+	// DB Name Len
+	binary.BigEndian.PutUint32(msg[offset:offset+4], dbNameLen)
+	offset += 4
+	// Secret Len
+	binary.BigEndian.PutUint32(msg[offset:offset+4], secretLen)
+	offset += 4
+	// DB Name
+	copy(msg[offset:offset+int(dbNameLen)], dbNameBytes)
+	offset += int(dbNameLen)
+	// Secret
+	copy(msg[offset:offset+int(secretLen)], secretBytes)
+	offset += int(secretLen)
+
+	return msg
 }
 
 /*DELETE_DB result

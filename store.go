@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"log"
 	"os"
 	"time"
 
@@ -32,12 +33,14 @@ func DeleteDB(path string) error {
 	// Primero intentamos eliminar el archivo de la base de datos principal
 	err := os.Remove(path)
 	if err != nil && !os.IsNotExist(err) {
+		log.Printf("Error eliminando base de datos principal: %v", err)
 		return err
 	}
 
 	// Luego intentamos eliminar el archivo de la base de datos de membranas
 	err = os.Remove(path + ".bolt")
 	if err != nil && !os.IsNotExist(err) {
+		log.Printf("Error eliminando base de datos de membranas: %v", err)
 		return err
 	}
 
@@ -368,6 +371,22 @@ func (s *Store) putMembrane(key string, membrane Membrane) error {
 		return bucket.Put([]byte(key), encoded)
 	})
 }
+
+func (s *Store) deleteMembrane(key string) error {
+	if s == nil || s.kv == nil {
+		return ErrNilKV
+	}
+
+	return s.kv.Update(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket(membraneBucket)
+		if bucket == nil {
+			return ErrNilKV
+		}
+
+		return bucket.Delete([]byte(key))
+	})
+}
+
 func (s *Store) Close() error {
 	if s == nil {
 		return nil
@@ -385,4 +404,33 @@ func (s *Store) Close() error {
 	}
 
 	return closeErr
+}
+
+// Destroy cierra las bases de datos abiertas en este Store y luego elimina sus archivos físicos.
+func (s *Store) Destroy() error {
+	if s == nil {
+		return nil
+	}
+
+	// Obtenemos la ruta principal a partir de la base de datos bbolt antes de cerrarla.
+	var mainPath string
+	if s.kv != nil {
+		dbPath := s.kv.Path()
+		if len(dbPath) > 0 {
+			// Le quitamos el ".bolt" para obtener la ruta de la db principal
+			mainPath = dbPath[:len(dbPath)-5]
+		}
+	}
+
+	// 1. Es crítico cerrar todos los manejadores del archivo para liberar el lock de Windows.
+	if err := s.Close(); err != nil {
+		return err
+	}
+
+	// 2. Ahora que están cerrados, podemos eliminar los archivos de manera segura.
+	if mainPath != "" {
+		return DeleteDB(mainPath)
+	}
+
+	return nil
 }

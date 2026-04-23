@@ -71,6 +71,12 @@ func (h *CentralHandler) GetStore(name string) (*Store, bool) {
 	return store, exists
 }
 
+func (h *CentralHandler) DeleteStore(name string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	delete(h.stores, name)
+}
+
 // CreateDB ejecuta la lógica y SIEMPRE retorna un []byte con la respuesta
 func (h *CentralHandler) CreateDB(parser *protocol.ProtocolParser, payload []byte) []byte {
 	req, err := parser.CreateDBReq(payload)
@@ -104,22 +110,30 @@ func (h *CentralHandler) CreateDB(parser *protocol.ProtocolParser, payload []byt
 
 func (h *CentralHandler) DelDB(parser *protocol.ProtocolParser, payload []byte) []byte {
 
-	req, err := parser.CreateDBReq(payload)
+	req, err := parser.DeleteDBReq(payload)
 	if err != nil {
 		return []byte("error parseando requerimiento")
 	}
 
-	_, exists := h.GetStore(string(req.DBName))
+	store, exists := h.GetStore(string(req.DBName))
 	if !exists {
 		//return []byte("base de datos no encontrada")
 		return parser.DeleteDBResultBytes(req.ID, 2)
 	}
 
-	fullPath := filepath.Join(h.baseDir, string(req.DBName))
-	err = DeleteDB(fullPath)
-	if err != nil {
-		return parser.DeleteDBResultBytes(req.ID, 2)
+	_, ok := store.resolveCell(req.CellIndex, req.Secret)
+	if !ok {
+		//return ReadResult{Status: StatusUnauthorized}
+		return parser.ReadResultBytes(req.ID, 2, 0, nil)
 	}
+
+	err = store.Destroy()
+	if err != nil {
+		//return []byte("error eliminando base de datos")
+		return parser.DeleteDBResultBytes(req.ID, 3)
+	}
+
+	h.DeleteStore(string(req.DBName))
 
 	return parser.DeleteDBResultBytes(req.ID, 1)
 }
@@ -233,7 +247,7 @@ func (s *CentralHandler) ReadFree(parser *protocol.ProtocolParser, payload []byt
 
 	req, err := parser.ReadFreeReq(payload)
 	if err != nil {
-		return parser.ReadFreeResultBytes(req.ID, 2, nil)
+		return parser.ReadFreeResultBytes(req.ID, 1, nil)
 	}
 
 	store, exists := s.GetStore(string(req.DBName))
@@ -243,13 +257,57 @@ func (s *CentralHandler) ReadFree(parser *protocol.ProtocolParser, payload []byt
 
 	membrane, exists, err := store.getMembrane(string(req.Key))
 	if err != nil {
-		return parser.ReadFreeResultBytes(req.ID, 2, nil)
-	}
-
-	if !exists {
 		return parser.ReadFreeResultBytes(req.ID, 3, nil)
 	}
 
+	if !exists {
+		return parser.ReadFreeResultBytes(req.ID, 4, nil)
+	}
+
 	return parser.ReadFreeResultBytes(req.ID, 1, cloneBytes(membrane.Value))
+
+}
+
+func (s *CentralHandler) Delete(parser *protocol.ProtocolParser, payload []byte) []byte {
+
+	req, err := parser.DeleteReq(payload)
+	if err != nil {
+		return parser.DeleteDBResultBytes(req.ID, 2)
+	}
+
+	store, exists := s.GetStore(string(req.DBName))
+	if !exists {
+		return parser.DeleteDBResultBytes(req.ID, 2)
+	}
+
+	log.Printf("Intentando resolver cellIndex %d con secreto %s\n", req.CellIndex, string(req.Secret))
+	active, ok := store.resolveCell(req.CellIndex, req.Secret)
+	if !ok {
+		return parser.DeleteDBResultBytes(req.ID, 2)
+	}
+
+	membrane, exists, err := store.getMembrane(string(req.Key))
+	if err != nil {
+		return parser.DeleteDBResultBytes(req.ID, 2)
+	}
+
+	if !exists {
+		return parser.DeleteDBResultBytes(req.ID, 3)
+	}
+
+	requiredFlag := store.permissionFlag(membrane.OwnerIndex, active.index, ouroboros.BorrarSelf, ouroboros.BorrarAny)
+
+	if active.cell.Genoma&requiredFlag == 0 {
+		return parser.DeleteDBResultBytes(req.ID, 16)
+	}
+
+	store.deleteMembrane(string(req.Key))
+
+	//newIndex, refreshed := store.refresh(active.index, req.Secret)
+	//if !refreshed {
+	//	return parser.DeleteDBResultBytes(req.ID, 2)
+	//}
+
+	return parser.DeleteDBResultBytes(req.ID, 1)
 
 }

@@ -17,10 +17,13 @@ func main() {
 
 	centralHandler := samsara.NewCentralHandler()
 
-	//msg, _ := parser.CreateDBReqBytes("privateDB", "secreto", 100)
-	//msg := parser.WriteReqBytes(0, []byte("privateDB"), []byte("clave"), []byte("valor"), []byte("secreto"))
-	msg := parser.ReadReqBytes(0, []byte("privateDB"), []byte("clave"), []byte("secreto"))
-	//msg := parser.ReadFreeReqBytes([]byte("privateDB"), []byte("clave"))
+	//msg, _ := parser.CreateDBReqBytes("aDB", "secreto", 10)
+	msg := parser.DeleteDBReqBytes("aDB", "secreto", 0)
+	//msg := parser.WriteReqBytes(0, []byte("private2DB"), []byte("clave"), []byte("valorando"), []byte("secreto"))
+	//msg := parser.ReadReqBytes(0, []byte("private2DB"), []byte("clave"), []byte("secreto"))
+	//msg := parser.ReadFreeReqBytes([]byte("private2DB"), []byte("clave"))
+
+	//msg := parser.DeleteReqBytes([]byte("private2DB"), []byte("clave"), []byte("secreto"), 1)
 
 	resp := samsara.ProcessRequest(
 		msg,
@@ -28,13 +31,13 @@ func main() {
 		centralHandler,
 	)
 
-	//r, _ := parser.ReadFreeResult(resp)
-	r, _ := parser.ReadResult(resp)
+	r, _ := parser.CreateDBResult(resp)
+	//r, _ := parser.DeleteDBResult(resp)
 
 	// Verificación del resultado de creación de base de datos
 	fmt.Printf(" Result ID: %s\n", string(r.ID))
 	fmt.Printf("Status: %d\n", r.Status)
-	fmt.Printf("Value: %s\n", string(r.Value))
+	//fmt.Printf("Value: %s\n", string(r.Value))
 	fmt.Println("--------------------------------------------------")
 
 }

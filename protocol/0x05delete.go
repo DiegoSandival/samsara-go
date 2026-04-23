@@ -24,6 +24,45 @@ type DeleteReqMessage struct {
 	Secret    []byte
 }
 
+func (p *ProtocolParser) DeleteReqBytes(dbName, key, secret []byte, cellIndex uint32) []byte {
+	dbNameLen := uint32(len(dbName))
+	keyLen := uint32(len(key))
+	secretLen := uint32(len(secret))
+	totalLen := 4 + 16 + 4 + 4 + 4 + 4 + dbNameLen + keyLen + secretLen
+
+	msg := make([]byte, totalLen)
+	offset := 0
+	// Opcode
+	binary.BigEndian.PutUint32(msg[offset:offset+4], 0x05)
+	offset += 4
+	// ID (16 bytes)
+	copy(msg[offset:offset+16], make([]byte, 16)) // ID vacío
+	offset += 16
+	// CellIndex
+	binary.BigEndian.PutUint32(msg[offset:offset+4], cellIndex)
+	offset += 4
+	// DB Name Len
+	binary.BigEndian.PutUint32(msg[offset:offset+4], dbNameLen)
+	offset += 4
+	// Key Len
+	binary.BigEndian.PutUint32(msg[offset:offset+4], keyLen)
+	offset += 4
+	// Secret Len
+	binary.BigEndian.PutUint32(msg[offset:offset+4], secretLen)
+	offset += 4
+	// DB Name
+	copy(msg[offset:offset+int(dbNameLen)], dbName)
+	offset += int(dbNameLen)
+	// Key
+	copy(msg[offset:offset+int(keyLen)], key)
+	offset += int(keyLen)
+	// Secret
+	copy(msg[offset:offset+int(secretLen)], secret)
+	offset += int(secretLen)
+
+	return msg
+}
+
 func (p *ProtocolParser) DeleteReq(msg []byte) (DeleteReqMessage, error) {
 	var dm DeleteReqMessage
 
@@ -77,6 +116,17 @@ func (p *ProtocolParser) DeleteReq(msg []byte) (DeleteReqMessage, error) {
 type DeleteResult struct {
 	ID     []byte
 	Status int32
+}
+
+func (p *ProtocolParser) DeleteResultBytes(id []byte, status int32) []byte {
+	msg := make([]byte, 16+4)
+	offset := 0
+	// ID
+	copy(msg[offset:offset+16], id)
+	offset += 16
+	// Status
+	binary.BigEndian.PutUint32(msg[offset:offset+4], uint32(status))
+	return msg
 }
 
 func (p *ProtocolParser) DeleteResult(msg []byte) (DeleteResult, error) {

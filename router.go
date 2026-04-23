@@ -25,6 +25,8 @@ func ProcessRequest(msg []byte, parser *protocol.ProtocolParser, handler *Centra
 		return handler.Read(parser, msg)
 	case 0x04:
 		return handler.ReadFree(parser, msg)
+	case 0x05:
+		return handler.Delete(parser, msg)
 
 	default:
 		// Opcode no soportado
