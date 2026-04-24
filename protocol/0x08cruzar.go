@@ -1,23 +1,23 @@
 package protocol
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 )
 
-/*CRUZAR (0x07)
+/*CRUZAR (0x08)
 [Opcode: 4]
 [ID: 16]
 [CellIndexA: 4]
 [CellIndexB: 4]
-[X: 4]
-[Y: 4]
-[Z: 4]
-[ChildSalt: 16]
 [DB Name Len: 4]
 [SecretA Len: 4]
 [SecretB Len: 4]
 [ChildGenome: 4]
+[X: 4]
+[Y: 4]
+[Z: 4]
 [ChildSecret Len: 4] |
 [DB Name: N]
 [SecretA: M]
@@ -31,7 +31,6 @@ type CruzarReqMessage struct {
 	X           uint32
 	Y           uint32
 	Z           uint32
-	ChildSalt   [16]byte
 	DBName      []byte
 	SecretA     []byte
 	SecretB     []byte
@@ -42,8 +41,8 @@ type CruzarReqMessage struct {
 func (p *ProtocolParser) CruzarReq(msg []byte) (CruzarReqMessage, error) {
 	var cm CruzarReqMessage
 
-	// Opcode(4) + ID(16) + CellIndexA(4) + CellIndexB(4) + X(4) + Y(4) + Z(4) + ChildSalt(16) + DBLen(4) + SecretALen(4) + SecretBLen(4) + ChildGenome(4) + ChildSecretLen(4) = 64 bytes
-	if len(msg) < 64 {
+	// Opcode(4) + ID(16) + CellIndexA(4) + CellIndexB(4) + X(4) + Y(4) + Z(4) + DBLen(4) + SecretALen(4) + SecretBLen(4) + ChildGenome(4) + ChildSecretLen(4) = 64 bytes
+	if len(msg) < 48 {
 		return cm, fmt.Errorf("mensaje demasiado corto")
 	}
 
@@ -68,9 +67,6 @@ func (p *ProtocolParser) CruzarReq(msg []byte) (CruzarReqMessage, error) {
 
 	cm.Z = binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
-
-	copy(cm.ChildSalt[:], msg[offset:offset+16])
-	offset += 16
 
 	dbNameLen := binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
@@ -107,47 +103,50 @@ func (p *ProtocolParser) CruzarReq(msg []byte) (CruzarReqMessage, error) {
 	return cm, nil
 }
 
-func (p *ProtocolParser) CruzarReqBytes(ID []byte, cellindexa uint32, cellindexb uint32, x uint32, y uint32, z uint32, childSalt [16]byte, dbName []byte, secretA []byte, secretB []byte, childSecret []byte) []byte {
-	msg := make([]byte, 0)
-	msg = append(msg, []byte{0x00, 0x00, 0x00, 0x07}...) // Opcode
-	msg = append(msg, ID...)
-	cellIndexABuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(cellIndexABuf, cellindexa)
-	msg = append(msg, cellIndexABuf...)
-	cellIndexBBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(cellIndexBBuf, cellindexb)
-	msg = append(msg, cellIndexBBuf...)
-	xBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(xBuf, x)
-	msg = append(msg, xBuf...)
-	yBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(yBuf, y)
-	msg = append(msg, yBuf...)
-	zBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(zBuf, z)
-	msg = append(msg, zBuf...)
-	msg = append(msg, childSalt[:]...)
-	dbNameLenBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(dbNameLenBuf, uint32(len(dbName)))
-	msg = append(msg, dbNameLenBuf...)
+func (p *ProtocolParser) CruzarReqBytes(cellindexa uint32, cellindexb uint32, x uint32, y uint32, z uint32, dbName []byte, secretA []byte, secretB []byte, childSecret []byte) []byte {
+	ID := make([]byte, 16)
+	rand.Read(ID)
+	dbNameLen := uint32(len(dbName))
+	secretALen := uint32(len(secretA))
+	secretBLen := uint32(len(secretB))
+	childSecretLen := uint32(len(childSecret))
+	totalLen := 4 + 16 + 4 + 4 + 4 + 4 + 4 + 16 + 4 + 4 + 4 + 4 + dbNameLen + secretALen + secretBLen + childSecretLen
+	msg := make([]byte, totalLen)
+	offset := 0
+	binary.BigEndian.PutUint32(msg[offset:offset+4], 0x08) // Opcode
+	offset += 4
 
-	secretALenBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(secretALenBuf, uint32(len(secretA)))
-	msg = append(msg, secretALenBuf...)
+	copy(msg[offset:offset+16], ID)
+	offset += 16
+	binary.BigEndian.PutUint32(msg[offset:offset+4], cellindexa)
+	offset += 4
+	binary.BigEndian.PutUint32(msg[offset:offset+4], cellindexb)
+	offset += 4
+	binary.BigEndian.PutUint32(msg[offset:offset+4], x)
+	offset += 4
+	binary.BigEndian.PutUint32(msg[offset:offset+4], y)
+	offset += 4
+	binary.BigEndian.PutUint32(msg[offset:offset+4], z)
+	offset += 4
 
-	secretBLenBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(secretBLenBuf, uint32(len(secretB)))
-	msg = append(msg, secretBLenBuf...)
+	copy(msg[offset:offset+16], make([]byte, 16))
+	offset += 16
 
-	childSecretLenBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(childSecretLenBuf, uint32(len(childSecret)))
-	msg = append(msg, childSecretLenBuf...)
-
-	msg = append(msg, dbName...)
-	msg = append(msg, secretA...)
-	msg = append(msg, secretB...)
-	msg = append(msg, childSecret...)
-
+	binary.BigEndian.PutUint32(msg[offset:offset+4], dbNameLen)
+	offset += 4
+	binary.BigEndian.PutUint32(msg[offset:offset+4], secretALen)
+	offset += 4
+	binary.BigEndian.PutUint32(msg[offset:offset+4], secretBLen)
+	offset += 4
+	binary.BigEndian.PutUint32(msg[offset:offset+4], childSecretLen)
+	offset += 4
+	copy(msg[offset:offset+int(dbNameLen)], dbName)
+	offset += int(dbNameLen)
+	copy(msg[offset:offset+int(secretALen)], secretA)
+	offset += int(secretALen)
+	copy(msg[offset:offset+int(secretBLen)], secretB)
+	offset += int(secretBLen)
+	copy(msg[offset:offset+int(childSecretLen)], childSecret)
 	return msg
 }
 
@@ -197,7 +196,7 @@ func (p *ProtocolParser) CruzarResultBytes(ID []byte, status int32, cellIndex ui
 func (parser *ProtocolParser) testCruzar() {
 
 	rawCruzarReqMsg := []byte{
-		0x00, 0x00, 0x00, 0x07, // Opcode
+		0x00, 0x00, 0x00, 0x08, // Opcode
 		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, // ID
 		0x00, 0x00, 0x00, 0x04, // DB Name Len
 		0x00, 0x00, 0x00, 0x01, // CellIndex
