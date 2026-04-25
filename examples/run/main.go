@@ -6,7 +6,7 @@ import (
 	protocol "github.com/DiegoSandival/samsara-go/protocol"
 
 	//ouroboros "github.com/DiegoSandival/ouroboros-go"
-	samsara "github.com/DiegoSandival/samsara-go"
+	samsara "github.com/DiegoSandival/samsara-go/handler"
 )
 
 var Opcode byte
