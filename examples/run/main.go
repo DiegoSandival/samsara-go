@@ -59,7 +59,7 @@ func main() {
 	//msg := parser.DiferirReqBytes([]byte("PRIMODB"), []byte("secretaria"), []byte("celular"), 0, parser.GenomaDetailFromBytes(GenomaDetailFromBytes), 0, 0, 0)
 	//msg := parser.DiferirReqBytes([]byte("PRIMODB"), []byte("secretaria"), []byte("celular"), 0, parser.GenomaDetailFromBytes(GenomaDetailFromBytes), 0, 0, 0)
 
-	msg := parser.CruzarReqBytes(1, 3, 0, 0, 0, []byte("PRIMODB"), []byte("secretaria"), []byte("celular"), []byte("secretocito"))
+	msg := parser.CruzarReqBytes([]byte("PRIMODB"), 2, 3, []byte("secreto"), []byte("valorando"), 0, 0, 0, []byte("childsecret"))
 	resp := samsara.ProcessRequest(
 		msg,
 		parser,

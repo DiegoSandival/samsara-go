@@ -9,12 +9,11 @@ import (
 /*CRUZAR (0x08)
 [Opcode: 4]
 [ID: 16]
+[DB Name Len: 4]
 [CellIndexA: 4]
 [CellIndexB: 4]
-[DB Name Len: 4]
 [SecretA Len: 4]
 [SecretB Len: 4]
-[ChildGenome: 4]
 [X: 4]
 [Y: 4]
 [Z: 4]
@@ -26,22 +25,20 @@ import (
 
 type CruzarReqMessage struct {
 	ID          []byte
+	DBName      []byte
 	CellIndexA  uint32
 	CellIndexB  uint32
+	SecretA     []byte
+	SecretB     []byte
 	X           uint32
 	Y           uint32
 	Z           uint32
-	DBName      []byte
-	SecretA     []byte
-	SecretB     []byte
-	ChildGenome uint32
 	ChildSecret []byte
 }
 
 func (p *ProtocolParser) CruzarReq(msg []byte) (CruzarReqMessage, error) {
 	var cm CruzarReqMessage
 
-	// Opcode(4) + ID(16) + CellIndexA(4) + CellIndexB(4) + X(4) + Y(4) + Z(4) + DBLen(4) + SecretALen(4) + SecretBLen(4) + ChildGenome(4) + ChildSecretLen(4) = 64 bytes
 	if len(msg) < 48 {
 		return cm, fmt.Errorf("mensaje demasiado corto")
 	}
@@ -52,75 +49,61 @@ func (p *ProtocolParser) CruzarReq(msg []byte) (CruzarReqMessage, error) {
 	cm.ID = make([]byte, 16)
 	copy(cm.ID, msg[offset:offset+16])
 	offset += 16
-
 	cm.CellIndexA = binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
-
 	cm.CellIndexB = binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
-
 	cm.X = binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
-
 	cm.Y = binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
-
 	cm.Z = binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
-
+	childSalt := make([]byte, 16)
+	copy(childSalt, msg[offset:offset+16])
+	offset += 16
 	dbNameLen := binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
-
 	secretALen := binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
-
 	secretBLen := binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
-
 	childSecretLen := binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
-
-	totalVariableLength := int(dbNameLen + secretALen + secretBLen + childSecretLen)
-	if len(msg) < offset+totalVariableLength {
-		return cm, fmt.Errorf("mensaje incompleto")
-	}
-
 	cm.DBName = make([]byte, dbNameLen)
 	copy(cm.DBName, msg[offset:offset+int(dbNameLen)])
 	offset += int(dbNameLen)
-
 	cm.SecretA = make([]byte, secretALen)
 	copy(cm.SecretA, msg[offset:offset+int(secretALen)])
 	offset += int(secretALen)
-
 	cm.SecretB = make([]byte, secretBLen)
 	copy(cm.SecretB, msg[offset:offset+int(secretBLen)])
 	offset += int(secretBLen)
-
 	cm.ChildSecret = make([]byte, childSecretLen)
 	copy(cm.ChildSecret, msg[offset:offset+int(childSecretLen)])
+	// ChildGenome is now explicitly parsed
 
 	return cm, nil
 }
 
-func (p *ProtocolParser) CruzarReqBytes(cellindexa uint32, cellindexb uint32, x uint32, y uint32, z uint32, dbName []byte, secretA []byte, secretB []byte, childSecret []byte) []byte {
+func (p *ProtocolParser) CruzarReqBytes(dbName []byte, cellIndexA, cellIndexB uint32, secretA, secretB []byte, x, y, z uint32, childSecret []byte) []byte {
 	ID := make([]byte, 16)
 	rand.Read(ID)
+
 	dbNameLen := uint32(len(dbName))
 	secretALen := uint32(len(secretA))
 	secretBLen := uint32(len(secretB))
 	childSecretLen := uint32(len(childSecret))
-	totalLen := 4 + 16 + 4 + 4 + 4 + 4 + 4 + 16 + 4 + 4 + 4 + 4 + dbNameLen + secretALen + secretBLen + childSecretLen
+	totalLen := 4 + 16 + 4 + 4 + 4 + 4 + 4 + 4 + 16 + 4 + 4 + 4 + 4 + dbNameLen + secretALen + secretBLen + childSecretLen
 	msg := make([]byte, totalLen)
 	offset := 0
 	binary.BigEndian.PutUint32(msg[offset:offset+4], 0x08) // Opcode
 	offset += 4
-
 	copy(msg[offset:offset+16], ID)
 	offset += 16
-	binary.BigEndian.PutUint32(msg[offset:offset+4], cellindexa)
+	binary.BigEndian.PutUint32(msg[offset:offset+4], cellIndexA)
 	offset += 4
-	binary.BigEndian.PutUint32(msg[offset:offset+4], cellindexb)
+	binary.BigEndian.PutUint32(msg[offset:offset+4], cellIndexB)
 	offset += 4
 	binary.BigEndian.PutUint32(msg[offset:offset+4], x)
 	offset += 4
@@ -128,10 +111,10 @@ func (p *ProtocolParser) CruzarReqBytes(cellindexa uint32, cellindexb uint32, x 
 	offset += 4
 	binary.BigEndian.PutUint32(msg[offset:offset+4], z)
 	offset += 4
-
-	copy(msg[offset:offset+16], make([]byte, 16))
+	childSalt := make([]byte, 16)
+	rand.Read(childSalt)
+	copy(msg[offset:offset+16], childSalt)
 	offset += 16
-
 	binary.BigEndian.PutUint32(msg[offset:offset+4], dbNameLen)
 	offset += 4
 	binary.BigEndian.PutUint32(msg[offset:offset+4], secretALen)
@@ -147,6 +130,8 @@ func (p *ProtocolParser) CruzarReqBytes(cellindexa uint32, cellindexb uint32, x 
 	copy(msg[offset:offset+int(secretBLen)], secretB)
 	offset += int(secretBLen)
 	copy(msg[offset:offset+int(childSecretLen)], childSecret)
+	offset += int(childSecretLen)
+
 	return msg
 }
 
