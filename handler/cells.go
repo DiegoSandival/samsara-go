@@ -3,6 +3,7 @@ package samsara
 import (
 	"log"
 
+	"github.com/DiegoSandival/ouroboros-go"
 	protocol "github.com/DiegoSandival/samsara-go/protocol"
 )
 
@@ -65,7 +66,7 @@ func (s *CentralHandler) Cruzar(parser *protocol.ProtocolParser, payload []byte)
 		return parser.CruzarResultBytes(req.ID, 3, 0)
 	}
 
-	_, ok := store.resolveCell(req.CellIndexA, req.SecretA)
+	activeA, ok := store.resolveCell(req.CellIndexA, req.SecretA)
 	if !ok {
 		return parser.CruzarResultBytes(req.ID, 4, 0)
 	}
@@ -75,7 +76,14 @@ func (s *CentralHandler) Cruzar(parser *protocol.ProtocolParser, payload []byte)
 		return parser.CruzarResultBytes(req.ID, 5, 0)
 	}
 
-	childCell := store.NewCellWithSecret([16]byte{}, req.ChildSecret, activeB.cell.Genoma, req.X, req.Y, req.Z)
+	//no se pueden cruzar si alguno de los dos no tiene la capacidad de fucionar (bit de fucionar en el genoma)
+	if activeA.cell.Genoma&ouroboros.Fucionar == 0 || activeB.cell.Genoma&ouroboros.Fucionar == 0 {
+
+		return parser.CruzarResultBytes(req.ID, 6, 0)
+	}
+
+	childGenome := activeA.cell.Genoma | activeB.cell.Genoma
+	childCell := NewCellWithSecret([16]byte{}, req.ChildSecret, childGenome, req.X, req.Y, req.Z)
 
 	childIndex, _ := store.DB().Append(childCell)
 
