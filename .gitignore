@@ -1,0 +1,17 @@
+#ignora 
+
+# Ignorar archivos de base de datos
+*.db
+*.db-shm
+*.db-wal
+
+
+# carpetas de bases de datos
+data/
+
+# Ignorar archivos de log
+*.log
+
+# Ignorar archivos de configuración
+config.yaml
+.env
