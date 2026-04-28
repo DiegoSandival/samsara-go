@@ -23,8 +23,8 @@ func main() {
 	//writeTest(parser, centralHandler)
 	//readTest(parser, centralHandler)
 	//readFreeTest(parser, centralHandler)
-	deleteTest(parser, centralHandler)
-	//readCellTest(parser, centralHandler)
+	//deleteTest(parser, centralHandler)
+	readCellTest(parser, centralHandler)
 	//diferirTest(parser, centralHandler)
 	//cruzarTest(parser, centralHandler)
 
@@ -145,7 +145,7 @@ func deleteTest(parser *protocol.ProtocolParser, centralHandler *samsara.Central
 
 func readCellTest(parser *protocol.ProtocolParser, centralHandler *samsara.CentralHandler) {
 
-	msg := parser.ReadCellReqBytes([]byte("pruebas"), []byte("comotellamas"), 0)
+	msg := parser.ReadCellReqBytes([]byte("pruebas"), []byte("cruzado"), 5)
 
 	resp := samsara.ProcessRequest(
 		msg,
@@ -157,7 +157,13 @@ func readCellTest(parser *protocol.ProtocolParser, centralHandler *samsara.Centr
 
 	fmt.Printf("Result ID: %x\n", string(r.ID))
 	fmt.Printf("Status: %d\n", r.Status)
-	fmt.Printf("Cell Genoma: %d\n", r.Value)
+
+	cell := parser.CellFromBytes(r.Value)
+
+	fmt.Printf("Genome: %032b\n", cell.Genoma)
+	fmt.Printf("Cell x: %d\n", cell.X)
+	fmt.Printf("Cell y: %d\n", cell.Y)
+	fmt.Printf("Cell z: %d\n", cell.Z)
 
 	fmt.Println("--------------------------------------------------")
 }
