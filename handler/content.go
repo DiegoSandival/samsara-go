@@ -1,8 +1,6 @@
 package samsara
 
 import (
-	"log"
-
 	"github.com/DiegoSandival/ouroboros-go"
 	protocol "github.com/DiegoSandival/samsara-go/protocol"
 )
@@ -62,7 +60,6 @@ func (s *CentralHandler) Write(parser *protocol.ProtocolParser, payload []byte) 
 		return parser.WriteResultBytes(req.ID, 11, 0, nil)
 	}
 
-	log.Printf("Intentando resolver cellIndex %d con secreto %s\n", req.CellIndex, string(req.Secret))
 	active, ok := store.resolveCell(req.CellIndex, req.Secret)
 	if !ok {
 		return parser.WriteResultBytes(req.ID, 12, 0, nil)
@@ -140,28 +137,27 @@ func (s *CentralHandler) Delete(parser *protocol.ProtocolParser, payload []byte)
 
 	store, exists := s.GetStore(string(req.DBName))
 	if !exists {
-		return parser.DeleteDBResultBytes(req.ID, 2)
+		return parser.DeleteDBResultBytes(req.ID, 3)
 	}
 
-	log.Printf("Intentando resolver cellIndex %d con secreto %s\n", req.CellIndex, string(req.Secret))
 	active, ok := store.resolveCell(req.CellIndex, req.Secret)
 	if !ok {
-		return parser.DeleteDBResultBytes(req.ID, 2)
+		return parser.DeleteDBResultBytes(req.ID, 4)
 	}
 
 	membrane, exists, err := store.getMembrane(string(req.Key))
 	if err != nil {
-		return parser.DeleteDBResultBytes(req.ID, 2)
+		return parser.DeleteDBResultBytes(req.ID, 5)
 	}
 
 	if !exists {
-		return parser.DeleteDBResultBytes(req.ID, 3)
+		return parser.DeleteDBResultBytes(req.ID, 6)
 	}
 
 	requiredFlag := store.permissionFlag(membrane.OwnerIndex, active.index, ouroboros.DeleteOwn, ouroboros.DeleteAll)
 
 	if active.cell.Genoma&requiredFlag == 0 {
-		return parser.DeleteDBResultBytes(req.ID, 16)
+		return parser.DeleteDBResultBytes(req.ID, 7)
 	}
 
 	store.deleteMembrane(string(req.Key))

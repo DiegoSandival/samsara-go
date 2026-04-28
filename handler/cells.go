@@ -1,8 +1,6 @@
 package samsara
 
 import (
-	"log"
-
 	"github.com/DiegoSandival/ouroboros-go"
 	protocol "github.com/DiegoSandival/samsara-go/protocol"
 )
@@ -58,8 +56,6 @@ func (s *CentralHandler) Cruzar(parser *protocol.ProtocolParser, payload []byte)
 	if err != nil {
 		return parser.CruzarResultBytes(req.ID, 2, 0)
 	}
-
-	log.Println("####", string(req.DBName))
 
 	store, exists := s.GetStore(string(req.DBName))
 	if !exists {

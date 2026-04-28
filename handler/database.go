@@ -2,7 +2,6 @@ package samsara
 
 import (
 	"crypto/rand"
-	"log"
 	"path/filepath"
 
 	ouroboros "github.com/DiegoSandival/ouroboros-go"
@@ -16,9 +15,6 @@ func (h *CentralHandler) CreateDB(parser *protocol.ProtocolParser, payload []byt
 		return parser.CreateDBResultBytes(req.ID, 2)
 	}
 
-	//no se puede crear si el genoma incluye migrada activada
-	log.Printf("Genome  : %032b\n", req.Genome)
-	log.Printf("Migrated: %032b\n", ouroboros.IsMigrated)
 	if req.Genome&ouroboros.IsMigrated != 0 {
 		return parser.CreateDBResultBytes(req.ID, 3)
 	}
@@ -51,35 +47,29 @@ func (h *CentralHandler) CreateDB(parser *protocol.ProtocolParser, payload []byt
 }
 
 func (h *CentralHandler) DelDB(parser *protocol.ProtocolParser, payload []byte) []byte {
-	log.Println("DelDB called")
+
 	req, err := parser.DeleteDBReq(payload)
 	if err != nil {
 		return parser.DeleteDBResultBytes(req.ID, 2)
 	}
 
-	log.Printf("Attempting to delete DB: %s\n", string(req.DBName))
 	store, exists := h.GetStore(string(req.DBName))
 	if !exists {
 		//return []byte("base de datos no encontrada")
 		return parser.DeleteDBResultBytes(req.ID, 3)
 	}
 
-	log.Printf("DB found: %s, verifying secret...\n", string(req.DBName))
-	log.Printf("Cell index: %d, Secret: %s\n", req.CellIndex, string(req.Secret))
-
 	authorized := store.ResolveCellAuth(req.CellIndex, req.Secret)
 	if !authorized {
 		return parser.DeleteDBResultBytes(req.ID, 4)
 	}
 
-	log.Printf("Secret verified for DB: %s, destroying store...\n", string(req.DBName))
 	err = store.Destroy()
 	if err != nil {
 		//return []byte("error eliminando base de datos")
 		return parser.DeleteDBResultBytes(req.ID, 5)
 	}
 
-	log.Printf("Store destroyed for DB: %s, removing from handler...\n", string(req.DBName))
 	h.DeleteStore(string(req.DBName))
 
 	return parser.DeleteDBResultBytes(req.ID, 1)

@@ -81,13 +81,10 @@ func (p *ProtocolParser) GenomaDetailFromBytes(genoma GenomaDetail) uint32 {
 		result |= 1 << 7
 	}
 	if genoma.DominanceSelf {
-		result |= 1 << 9
+		result |= 1 << 8
 	}
 	if genoma.FreeRead {
-		result |= 1 << 10
-	}
-	if genoma.IsMigrated {
-		result |= 1 << 11
+		result |= 1 << 9
 	}
 
 	//llenar de bit 12 a 30 con 0s
