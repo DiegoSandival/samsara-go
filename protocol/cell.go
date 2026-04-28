@@ -52,7 +52,7 @@ type GenomaDetail struct {
 	CloneSelf       bool
 	DominanceSelf   bool
 	FreeRead        bool
-	Migradable      bool
+	IsMigrated      bool
 }
 
 func (p *ProtocolParser) GenomaDetailFromBytes(genoma GenomaDetail) uint32 {
@@ -90,7 +90,7 @@ func (p *ProtocolParser) GenomaDetailFromBytes(genoma GenomaDetail) uint32 {
 	if genoma.FreeRead {
 		result |= 1 << 10
 	}
-	if genoma.Migradable {
+	if genoma.IsMigrated {
 		result |= 1 << 11
 	}
 

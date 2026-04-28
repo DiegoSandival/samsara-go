@@ -321,6 +321,7 @@ func refreshCellWithSecret(cell ouroboros.Celula, secret []byte) (ouroboros.Celu
 
 	return NewCellWithSecret(salt, secret, cell.Genoma, cell.X, cell.Y, cell.Z), true
 }
+
 func NewCellWithSecret(salt [16]byte, secret []byte, genome, x, y, z uint32) ouroboros.Celula {
 	data := append(salt[:], secret...)
 	hash := blake3.Sum256(data)
@@ -433,4 +434,24 @@ func (s *Store) Destroy() error {
 	}
 
 	return nil
+}
+
+func (store *Store) ResolveCellAuth(cellIndex uint32, secret []byte) bool {
+	index := cellIndex
+	cell, err := store.db.ReadAuth(cellIndex, secret)
+	if err != nil {
+		return false
+	}
+
+	//verificar si la celula es migrada
+
+	for cell.Genoma&ouroboros.IsMigrated != 0 {
+		index = cell.X
+		cell, err = store.db.ReadAuth(index, secret)
+		if err != nil {
+			return false
+		}
+	}
+
+	return err == nil
 }
