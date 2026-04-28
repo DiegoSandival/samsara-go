@@ -100,18 +100,14 @@ type ReadCellResultMessage struct {
 }
 
 func (p *ProtocolParser) ReadCellResultBytes(id []byte, status int32, value []byte) []byte {
-
-	valueLen := uint32(len(value))
-	totalLen := 16 + 4 + 4 + valueLen
+	totalLen := 16 + 4 + len(value)
 	msg := make([]byte, totalLen)
 	// ID
 	copy(msg[0:16], id)
 	// Status
 	binary.BigEndian.PutUint32(msg[16:20], uint32(status))
-	// Value Len
-	binary.BigEndian.PutUint32(msg[20:24], valueLen)
 	// Value
-	copy(msg[24:], value)
+	copy(msg[20:], value)
 	return msg
 }
 

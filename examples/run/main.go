@@ -23,10 +23,10 @@ func main() {
 	//writeTest(parser, centralHandler)
 	//readTest(parser, centralHandler)
 	//readFreeTest(parser, centralHandler)
-	//deleteTest(parser, centralHandler)
+	deleteTest(parser, centralHandler)
 	//readCellTest(parser, centralHandler)
 	//diferirTest(parser, centralHandler)
-	cruzarTest(parser, centralHandler)
+	//cruzarTest(parser, centralHandler)
 
 }
 
@@ -62,7 +62,7 @@ func createDBTest(parser *protocol.ProtocolParser, centralHandler *samsara.Centr
 
 func deleteDBTest(parser *protocol.ProtocolParser, centralHandler *samsara.CentralHandler) {
 
-	msg := parser.DeleteDBReqBytes("example", "secretaria", 0)
+	msg := parser.DeleteDBReqBytes("pruebas", "comotellamas", 0)
 
 	resp := samsara.ProcessRequest(
 		msg,

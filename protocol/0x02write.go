@@ -112,11 +112,11 @@ type WriteResult struct {
 }
 
 func (p *ProtocolParser) WriteResultBytes(id []byte, status int32, newCellIndex uint32, newValue []byte) []byte {
-	result := make([]byte, 16+4+4+len(newValue))
+	_ = newCellIndex
+	_ = newValue
+	result := make([]byte, 16+4)
 	copy(result[:16], id)
 	binary.BigEndian.PutUint32(result[16:20], uint32(status))
-	binary.BigEndian.PutUint32(result[20:24], newCellIndex)
-	copy(result[24:], newValue)
 	return result
 }
 

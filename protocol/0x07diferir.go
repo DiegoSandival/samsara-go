@@ -40,7 +40,8 @@ func (p *ProtocolParser) DiferirReq(msg []byte) (DiferirReqMessage, error) {
 	if len(msg) < 68 {
 		return dr, fmt.Errorf("mensaje demasiado corto")
 	}
-	offset := 4
+	offset := 0
+	offset += 4 // opcode
 
 	dr.ID = make([]byte, 16)
 	copy(dr.ID, msg[offset:offset+16])
@@ -48,18 +49,10 @@ func (p *ProtocolParser) DiferirReq(msg []byte) (DiferirReqMessage, error) {
 
 	dbNameLen := binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
-	if len(msg) < int(offset+4+int(dbNameLen)) {
-		return dr, fmt.Errorf("mensaje demasiado corto para DB Name")
-	}
-
 	dr.CellIndex = binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
 	secretLen := binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
-	if len(msg) < int(offset+4+int(secretLen)) {
-		return dr, fmt.Errorf("mensaje demasiado corto para Secret")
-	}
-
 	dr.ChildGenome = binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
 	dr.X = binary.BigEndian.Uint32(msg[offset : offset+4])
@@ -68,23 +61,28 @@ func (p *ProtocolParser) DiferirReq(msg []byte) (DiferirReqMessage, error) {
 	offset += 4
 	dr.Z = binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
-	childSalt := make([]byte, 16)
-	copy(childSalt, msg[offset:offset+16])
+	if len(msg) < offset+16 {
+		return dr, fmt.Errorf("mensaje demasiado corto para ChildSalt")
+	}
 	offset += 16
 	childSecretLen := binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
-	if len(msg) < int(offset+int(childSecretLen)) {
-		return dr, fmt.Errorf("mensaje demasiado corto para Child Secret")
+	totalVariableLength := int(dbNameLen + secretLen + childSecretLen)
+	if len(msg) < offset+totalVariableLength {
+		return dr, fmt.Errorf("mensaje incompleto")
 	}
-	dr.ChildSecret = make([]byte, childSecretLen)
-	copy(dr.ChildSecret, msg[offset:offset+int(childSecretLen)])
-	offset += int(childSecretLen)
+
 	dr.DBName = make([]byte, dbNameLen)
 	copy(dr.DBName, msg[offset:offset+int(dbNameLen)])
 	offset += int(dbNameLen)
+
 	dr.Secret = make([]byte, secretLen)
 	copy(dr.Secret, msg[offset:offset+int(secretLen)])
 	offset += int(secretLen)
+
+	dr.ChildSecret = make([]byte, childSecretLen)
+	copy(dr.ChildSecret, msg[offset:offset+int(childSecretLen)])
+
 	return dr, nil
 }
 
@@ -122,12 +120,12 @@ func (p *ProtocolParser) DiferirReqBytes(DBName, Secret, ChildSecret []byte, Cel
 	offset += 16
 	binary.BigEndian.PutUint32(msg[offset:offset+4], childSecretLen)
 	offset += 4
-	copy(msg[offset:offset+int(childSecretLen)], ChildSecret)
-	offset += int(childSecretLen)
 	copy(msg[offset:offset+int(dbNameLen)], DBName)
 	offset += int(dbNameLen)
 	copy(msg[offset:offset+int(secretLen)], Secret)
 	offset += int(secretLen)
+	copy(msg[offset:offset+int(childSecretLen)], ChildSecret)
+	offset += int(childSecretLen)
 
 	return msg
 }
