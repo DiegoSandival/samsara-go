@@ -49,7 +49,6 @@ type GenomaDetail struct {
 	DeleteNeighbors bool
 	DiferirSelf     bool
 	CruzarSelf      bool
-	CloneSelf       bool
 	DominanceSelf   bool
 	FreeRead        bool
 	IsMigrated      bool
@@ -80,9 +79,6 @@ func (p *ProtocolParser) GenomaDetailFromBytes(genoma GenomaDetail) uint32 {
 	}
 	if genoma.CruzarSelf {
 		result |= 1 << 7
-	}
-	if genoma.CloneSelf {
-		result |= 1 << 8
 	}
 	if genoma.DominanceSelf {
 		result |= 1 << 9

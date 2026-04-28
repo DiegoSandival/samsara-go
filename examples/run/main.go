@@ -46,7 +46,6 @@ func createDBTest(parser *protocol.ProtocolParser, centralHandler *samsara.Centr
 		DeleteNeighbors: true,
 		DiferirSelf:     true,
 		CruzarSelf:      true,
-		CloneSelf:       true,
 		DominanceSelf:   true,
 		FreeRead:        true,
 		IsMigrated:      false,

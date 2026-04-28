@@ -17,6 +17,8 @@ func (h *CentralHandler) CreateDB(parser *protocol.ProtocolParser, payload []byt
 	}
 
 	//no se puede crear si el genoma incluye migrada activada
+	log.Printf("Genome  : %032b\n", req.Genome)
+	log.Printf("Migrated: %032b\n", ouroboros.IsMigrated)
 	if req.Genome&ouroboros.IsMigrated != 0 {
 		return parser.CreateDBResultBytes(req.ID, 3)
 	}
