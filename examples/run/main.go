@@ -17,11 +17,26 @@ func main() {
 
 	centralHandler := samsara.NewCentralHandler()
 
-	//msg, _ := parser.CreateDBReqBytes("real", "secretaria", 10)
+	GenomaGenesis := protocol.GenomaDetail{
+		ReadSelf:        true,
+		ReadNeighbors:   false,
+		WriteSelf:       true,
+		WriteNeighbors:  false,
+		DeleteSelf:      true,
+		DeleteNeighbors: false,
+		DiferirSelf:     true,
+		CruzarSelf:      true,
+		CloneSelf:       false,
+		DominanceSelf:   false,
+		FreeRead:        false,
+		Migradable:      false,
+	}
+
+	msg, _ := parser.CreateDBReqBytes("reales", "secretaria", 10, parser.GenomaDetailFromBytes(GenomaGenesis))
 	//msg := parser.DeleteDBReqBytes("PRIMODB", "secretaria", 0)
 	//msg := parser.WriteReqBytes(0, []byte("real"), []byte("persona1"), []byte("esto es el valor de la persona"), []byte("secretaria"))
 	//msg := parser.ReadReqBytes(0, []byte("real"), []byte("persona1"), []byte("secretaria"))
-	msg := parser.ReadFreeReqBytes([]byte("real"), []byte("persona1"))
+	//msg := parser.ReadFreeReqBytes([]byte("real"), []byte("persona1"))
 	//msg := parser.DeleteReqBytes([]byte("private2DB"), []byte("clave"), []byte("secreto"), 1)
 	//msg := parser.ReadCellReqBytes([]byte("PRIMODB"), []byte("secretaria"), 0)
 
