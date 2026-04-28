@@ -11,7 +11,8 @@ import (
 [ID: 16]
 [DB Name Len: 4]
 [Secret Len: 4]
-[DB Size: 4] |
+[DB Size: 4]
+[Genome: 4]|
 [DB Name: N]
 [Secret: M]*/
 
@@ -20,9 +21,10 @@ type CreateDBReqMessage struct {
 	DBName []byte
 	Secret []byte
 	DBSize uint32
+	Genome uint32
 }
 
-func (p *ProtocolParser) CreateDBReqBytes(DBName string, Secret string, DBSize uint32) ([]byte, error) {
+func (p *ProtocolParser) CreateDBReqBytes(DBName string, Secret string, DBSize uint32, Genome uint32) ([]byte, error) {
 	oPcode := uint32(0x00)
 	// Generar ID aleatorio de 16 bytes
 	ID := make([]byte, 16)
@@ -36,14 +38,15 @@ func (p *ProtocolParser) CreateDBReqBytes(DBName string, Secret string, DBSize u
 	dbNameLen := uint32(len(dbNameBytes))
 	secretLen := uint32(len(secretBytes))
 	// Crear el mensaje concatenando todos los campos
-	message := make([]byte, 4+16+4+4+4+dbNameLen+secretLen)
+	message := make([]byte, 4+16+4+4+4+4+dbNameLen+secretLen)
 	binary.BigEndian.PutUint32(message[0:4], oPcode) // Opcode
 	copy(message[4:20], ID)
 	binary.BigEndian.PutUint32(message[20:24], dbNameLen)
 	binary.BigEndian.PutUint32(message[24:28], secretLen)
 	binary.BigEndian.PutUint32(message[28:32], DBSize)
-	copy(message[32:32+dbNameLen], dbNameBytes)
-	copy(message[32+dbNameLen:32+dbNameLen+secretLen], secretBytes)
+	binary.BigEndian.PutUint32(message[32:36], Genome)
+	copy(message[36:36+dbNameLen], dbNameBytes)
+	copy(message[36+dbNameLen:36+dbNameLen+secretLen], secretBytes)
 
 	return message, nil
 }
@@ -51,8 +54,8 @@ func (p *ProtocolParser) CreateDBReqBytes(DBName string, Secret string, DBSize u
 func (p *ProtocolParser) CreateDBReq(msg []byte) (CreateDBReqMessage, error) {
 	var cm CreateDBReqMessage
 
-	// Opcode(4) + ID(16) + DBLen(4) + SecretLen(4) + DBSize(4) = 32 bytes
-	if len(msg) < 32 {
+	// Opcode(4) + ID(16) + DBLen(4) + SecretLen(4) + DBSize(4) + Genome(4) = 36 bytes
+	if len(msg) < 36 {
 		return cm, fmt.Errorf("mensaje demasiado corto")
 	}
 
@@ -79,6 +82,9 @@ func (p *ProtocolParser) CreateDBReq(msg []byte) (CreateDBReqMessage, error) {
 	cm.Secret = make([]byte, secretLen)
 	copy(cm.Secret, msg[offset:offset+int(secretLen)])
 	offset += int(secretLen)
+
+	cm.Genome = binary.BigEndian.Uint32(msg[offset : offset+4])
+	offset += 4
 
 	return cm, nil
 }
@@ -131,6 +137,7 @@ func (parser *ProtocolParser) testCreateDB() {
 		0x00, 0x00, 0x00, 0x64, // DB Size (100)
 		0x64, 0x62, 0x31, 0x32, // DB Name: "db12"
 		0x73, 0x65, 0x63, 0x72, // Secret: "secr"
+		0x00, 0x00, 0x00, 0x01, // Genome
 	}
 
 	readCreateDBReq, err := parser.CreateDBReq(rawCreateDBReqMsg)

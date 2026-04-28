@@ -98,8 +98,8 @@ func New(path string, maxRecords uint32) (*Store, error) {
 
 // Open abre un Store existente (pasando 0 a maxRecords).
 func Open(path string) (*Store, error) {
-	db, err := ouroboros.OpenExistingOuroborosDB(path)
 
+	db, err := ouroboros.OpenExistingOuroborosDB(path)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +210,7 @@ func (s *Store) resolveCellWithReader(cellIndex uint32, reader func(uint32) (our
 		return resolvedCell{}, false
 	}
 
-	for cell.Genoma&ouroboros.Migrada != 0 {
+	for cell.Genoma&ouroboros.IsMigrated != 0 {
 		index = cell.X
 		cell, ok = reader(index)
 		if !ok {
@@ -305,7 +305,7 @@ func (s *Store) refresh(cellIndex uint32, secret []byte) (uint32, bool) {
 		return 0, false
 	}
 
-	migratedGenome := original.Genoma | ouroboros.Migrada
+	migratedGenome := original.Genoma | ouroboros.IsMigrated
 	if err := s.db.Update(cellIndex, migratedGenome, renewedIndex, original.Y, original.Z); err != nil {
 		return 0, false
 	}

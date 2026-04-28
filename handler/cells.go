@@ -77,7 +77,7 @@ func (s *CentralHandler) Cruzar(parser *protocol.ProtocolParser, payload []byte)
 	}
 
 	//no se pueden cruzar si alguno de los dos no tiene la capacidad de fucionar (bit de fucionar en el genoma)
-	if activeA.cell.Genoma&ouroboros.Fucionar == 0 || activeB.cell.Genoma&ouroboros.Fucionar == 0 {
+	if activeA.cell.Genoma&ouroboros.Merge == 0 || activeB.cell.Genoma&ouroboros.Merge == 0 {
 
 		return parser.CruzarResultBytes(req.ID, 6, 0)
 	}

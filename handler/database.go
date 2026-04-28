@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"path/filepath"
 
-	"github.com/DiegoSandival/ouroboros-go"
 	protocol "github.com/DiegoSandival/samsara-go/protocol"
 )
 
@@ -36,7 +35,7 @@ func (h *CentralHandler) CreateDB(parser *protocol.ProtocolParser, payload []byt
 		return parser.CreateDBResultBytes(req.ID, 4)
 	}
 
-	cell := store.NewCellWithSecret(salt, req.Secret, ouroboros.GenomaGenesis, 0, 0, 0)
+	cell := store.NewCellWithSecret(salt, req.Secret, req.Genome, 0, 0, 0)
 
 	store.DB().Append(cell)
 

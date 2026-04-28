@@ -37,7 +37,7 @@ func (s *CentralHandler) Read(parser *protocol.ProtocolParser, payload []byte) [
 		return parser.ReadResultBytes(req.ID, 3, active.index, nil)
 	}
 
-	requiredFlag := store.permissionFlag(membrane.OwnerIndex, active.index, ouroboros.LeerSelf, ouroboros.LeerAny)
+	requiredFlag := store.permissionFlag(membrane.OwnerIndex, active.index, ouroboros.ReadOwn, ouroboros.ReadAll)
 
 	if active.cell.Genoma&requiredFlag == 0 {
 		return parser.ReadResultBytes(req.ID, 2, active.index, nil)
@@ -90,7 +90,7 @@ func (s *CentralHandler) Write(parser *protocol.ProtocolParser, payload []byte) 
 		return parser.WriteResultBytes(req.ID, 1, newIndex, nil)
 	}
 
-	requiredFlag := store.permissionFlag(membrane.OwnerIndex, active.index, ouroboros.EscribirSelf, ouroboros.EscribirAny)
+	requiredFlag := store.permissionFlag(membrane.OwnerIndex, active.index, ouroboros.WriteOwn, ouroboros.WriteAll)
 
 	if active.cell.Genoma&requiredFlag == 0 {
 		return parser.WriteResultBytes(req.ID, 16, active.index, nil)
@@ -158,7 +158,7 @@ func (s *CentralHandler) Delete(parser *protocol.ProtocolParser, payload []byte)
 		return parser.DeleteDBResultBytes(req.ID, 3)
 	}
 
-	requiredFlag := store.permissionFlag(membrane.OwnerIndex, active.index, ouroboros.BorrarSelf, ouroboros.BorrarAny)
+	requiredFlag := store.permissionFlag(membrane.OwnerIndex, active.index, ouroboros.DeleteOwn, ouroboros.DeleteAll)
 
 	if active.cell.Genoma&requiredFlag == 0 {
 		return parser.DeleteDBResultBytes(req.ID, 16)
