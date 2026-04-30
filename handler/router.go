@@ -15,23 +15,23 @@ func ProcessRequest(msg []byte, parser *protocol.ProtocolParser, handler *Centra
 
 	// 3. Enrutar según el opcode
 	switch parser.Opcode(msg) {
-	case 0x00:
+	case 0x20:
 		return handler.CreateDB(parser, msg)
-	case 0x01:
+	case 0x21:
 		return handler.DelDB(parser, msg)
-	case 0x02:
+	case 0x22:
 		return handler.Write(parser, msg)
-	case 0x03:
+	case 0x23:
 		return handler.Read(parser, msg)
-	case 0x04:
+	case 0x24:
 		return handler.ReadFree(parser, msg)
-	case 0x05:
+	case 0x25:
 		return handler.Delete(parser, msg)
-	case 0x06:
+	case 0x26:
 		return handler.ReadCell(parser, msg)
-	case 0x07:
+	case 0x27:
 		return handler.Diferir(parser, msg)
-	case 0x08:
+	case 0x28:
 		return handler.Cruzar(parser, msg)
 
 	default:

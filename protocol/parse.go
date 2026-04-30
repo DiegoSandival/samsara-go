@@ -1,14 +1,14 @@
 package protocol
 
 // opcodes:
-// 0x00: CREATE_DB
-// 0x01: DELETE_DB
-// 0x02: WRITE
-// 0x03: READ
-// 0x04: READ_FREE
-// 0x05: DELETE
-// 0x06: READ_CELL
-// 0x07: DIFERIR
-// 0x08: CRUZAR
+// 0x20: CREATE_DB
+// 0x21: DELETE_DB
+// 0x22: WRITE
+// 0x23: READ
+// 0x24: READ_FREE
+// 0x25: DELETE
+// 0x26: READ_CELL
+// 0x27: DIFERIR
+// 0x28: CRUZAR
 
 type ProtocolParser struct{}

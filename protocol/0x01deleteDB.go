@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-/*DELETE_DB (0x01)
+/*DELETE_DB (0x21)
 [Opcode: 4]
 [ID: 16]
 [CellIndex: 4]
@@ -70,7 +70,7 @@ func (p *ProtocolParser) DeleteDBReqBytes(dbName string, secret string, cellInde
 	msg := make([]byte, 4+16+4+4+4+len(dbNameBytes)+len(secretBytes))
 	offset := 0
 	// Opcode
-	binary.BigEndian.PutUint32(msg[offset:offset+4], 0x01)
+	binary.BigEndian.PutUint32(msg[offset:offset+4], 0x21)
 	offset += 4
 	// ID (16 bytes aleatorios)
 	randomID := make([]byte, 16)
@@ -141,7 +141,7 @@ func (p *ProtocolParser) DeleteDBResultBytes(id []byte, status int32) []byte {
 
 func (parser *ProtocolParser) testDeleteDB() {
 	rawDeleteDBReqMsg := []byte{
-		0x00, 0x00, 0x00, 0x01, // Opcode
+		0x00, 0x00, 0x00, 0x21, // Opcode
 		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, // ID
 		0x00, 0x00, 0x00, 0x01, // CellIndex
 		0x00, 0x00, 0x00, 0x04, // DB Name Len
@@ -163,7 +163,7 @@ func (parser *ProtocolParser) testDeleteDB() {
 		fmt.Println("DeleteDBReq parseado correctamente")
 	}
 
-	fmt.Printf("Opcode: 0x01 (DeleteDB)\n")
+	fmt.Printf("Opcode: 0x21 (DeleteDB)\n")
 	fmt.Printf("DeleteDB Req ID: %s\n", string(readDeleteDBReq.ID))
 	fmt.Printf("CellIndex: %d\n", readDeleteDBReq.CellIndex)
 	fmt.Printf("DBName: %s\n", string(readDeleteDBReq.DBName))
@@ -183,7 +183,7 @@ func (parser *ProtocolParser) testDeleteDB() {
 		fmt.Println("DeleteDBResult parseado correctamente")
 	}
 
-	fmt.Printf("Opcode: 0x01 (DeleteDB Result)\n")
+	fmt.Printf("Opcode: 0x21 (DeleteDB Result)\n")
 	fmt.Printf("DeleteDB Result ID: %s\n", string(readDeleteDBResult.ID))
 	fmt.Printf("Status: %d\n", readDeleteDBResult.Status)
 	fmt.Println("--------------------------------------------------")

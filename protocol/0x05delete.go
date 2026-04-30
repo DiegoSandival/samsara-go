@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-/*DELETE (0x05)
+/*DELETE (0x25)
 [Opcode: 4]
 [ID: 16]
 [CellIndex: 4]
@@ -33,7 +33,7 @@ func (p *ProtocolParser) DeleteReqBytes(dbName, key, secret []byte, cellIndex ui
 	msg := make([]byte, totalLen)
 	offset := 0
 	// Opcode
-	binary.BigEndian.PutUint32(msg[offset:offset+4], 0x05)
+	binary.BigEndian.PutUint32(msg[offset:offset+4], 0x25)
 	offset += 4
 	// ID (16 bytes)
 	copy(msg[offset:offset+16], make([]byte, 16)) // ID vacío
@@ -150,8 +150,8 @@ func (p *ProtocolParser) DeleteResult(msg []byte) (DeleteResult, error) {
 func (parser *ProtocolParser) testDelete() {
 
 	rawDeleteReqMsg := []byte{
-		// Opcode: 0x05
-		0x00, 0x00, 0x00, 0x05,
+		// Opcode: 0x25
+		0x00, 0x00, 0x00, 0x25,
 		// ID: 16 bytes (16 letras 'G')
 		0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47,
 		0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47,
@@ -178,7 +178,7 @@ func (parser *ProtocolParser) testDelete() {
 	}
 
 	// Verificación del resultado de eliminación
-	fmt.Printf("Opcode: 0x05 (DELETE)\n")
+	fmt.Printf("Opcode: 0x25 (DELETE)\n")
 	fmt.Printf("Delete Req ID: %s\n", string(deleteReq.ID))
 	fmt.Printf("CellIndex: %d\n", deleteReq.CellIndex)
 	fmt.Printf("DBName: %s\n", string(deleteReq.DBName))
@@ -201,7 +201,7 @@ func (parser *ProtocolParser) testDelete() {
 	}
 
 	// Verificación del resultado de eliminación
-	fmt.Printf("Opcode: 0x05 (DELETE Result)\n")
+	fmt.Printf("Opcode: 0x25 (DELETE Result)\n")
 	fmt.Printf("Delete Result ID: %s\n", string(deleteResult.ID))
 	fmt.Printf("Status: %d\n", deleteResult.Status)
 	fmt.Println("--------------------------------------------------")

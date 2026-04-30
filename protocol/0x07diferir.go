@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-/*DIFERIR (0x07)
+/*DIFERIR (0x27)
 [Opcode: 4]
 [ID: 16]
 [DB Name Len: 4]
@@ -95,7 +95,7 @@ func (p *ProtocolParser) DiferirReqBytes(DBName, Secret, ChildSecret []byte, Cel
 	totalLen := 4 + 16 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 16 + 4 + dbNameLen + secretLen + childSecretLen
 	msg := make([]byte, totalLen)
 	offset := 0
-	binary.BigEndian.PutUint32(msg[offset:offset+4], 0x07) // Opcode
+	binary.BigEndian.PutUint32(msg[offset:offset+4], 0x27) // Opcode
 	offset += 4
 
 	copy(msg[offset:offset+16], ID)
@@ -181,7 +181,7 @@ func (p *ProtocolParser) DiferirResultBytes(ID []byte, status int32, cellIndex u
 func (parser *ProtocolParser) testDiferir() {
 
 	rawDiferirReqMsg := []byte{
-		0x00, 0x00, 0x00, 0x07, // Opcode
+		0x00, 0x00, 0x00, 0x27, // Opcode
 		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, // ID
 		0x00, 0x00, 0x00, 0x04, // DB Name Len
 		0x00, 0x00, 0x00, 0x01, // CellIndex
@@ -204,7 +204,7 @@ func (parser *ProtocolParser) testDiferir() {
 		fmt.Println("DiferirReq parseado correctamente")
 	}
 
-	fmt.Printf("Opcode: 0x07 (Diferir)\n")
+	fmt.Printf("Opcode: 0x27 (Diferir)\n")
 	fmt.Printf("Read Cell Req ID: %s\n", string(readDiferirReq.ID))
 	fmt.Printf("CellIndex: %d\n", readDiferirReq.CellIndex)
 	fmt.Printf("DBName: %s\n", string(readDiferirReq.DBName))
@@ -225,7 +225,7 @@ func (parser *ProtocolParser) testDiferir() {
 		fmt.Println("DiferirResult parseado correctamente")
 	}
 
-	fmt.Printf("Opcode: 0x07 (Diferir Result)\n")
+	fmt.Printf("Opcode: 0x27 (Diferir Result)\n")
 	fmt.Printf("Diferir Result ID: %s\n", string(readDiferirResult.ID))
 	fmt.Printf("Status: %d\n", readDiferirResult.Status)
 	fmt.Printf("CellIndex: %d\n", readDiferirResult.CellIndex)

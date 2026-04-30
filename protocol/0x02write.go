@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-/*WRITE (0x02)
+/*WRITE (0x22)
 [Opcode: 4]
 [ID: 16]
 [CellIndex: 4]
@@ -88,7 +88,7 @@ func (p *ProtocolParser) WriteReqBytes(cellIndex uint32, dbName, key, value, sec
 	rand.Read(ID)
 
 	msg := make([]byte, 4+16+4+4+4+4+4+len(dbName)+len(key)+len(value)+len(secret))
-	binary.BigEndian.PutUint32(msg[0:4], 0x02)
+	binary.BigEndian.PutUint32(msg[0:4], 0x22)
 	copy(msg[4:20], ID)
 	binary.BigEndian.PutUint32(msg[20:24], cellIndex)
 	binary.BigEndian.PutUint32(msg[24:28], uint32(len(dbName)))
@@ -141,8 +141,8 @@ func (p *ProtocolParser) WriteResult(msg []byte) (WriteResult, error) {
 func (parser *ProtocolParser) testWrite() {
 
 	rawWriteReqMsg := []byte{
-		// Opcode: 0x02
-		0x00, 0x00, 0x00, 0x02,
+		// Opcode: 0x22
+		0x00, 0x00, 0x00, 0x22,
 		// ID: 16 bytes (16 letras 'E')
 		0x45, 0x45, 0x45, 0x45, 0x45, 0x45, 0x45, 0x45,
 		0x45, 0x45, 0x45, 0x45, 0x45, 0x45, 0x45, 0x45,
@@ -172,7 +172,7 @@ func (parser *ProtocolParser) testWrite() {
 		return
 	}
 	// Verificación del resultado de escritura
-	fmt.Printf("Opcode: 0x02 (WRITE)\n")
+	fmt.Printf("Opcode: 0x22 (WRITE)\n")
 	fmt.Printf("Write Req ID: %s\n", string(writeReq.ID))
 	fmt.Printf("CellIndex: %d\n", writeReq.CellIndex)
 	fmt.Printf("DBName: %s\n", string(writeReq.DBName))
@@ -195,7 +195,7 @@ func (parser *ProtocolParser) testWrite() {
 		return
 	}
 	// Verificación del resultado de escritura
-	fmt.Printf("Opcode: 0x02 (WRITE Result)\n")
+	fmt.Printf("Opcode: 0x22 (WRITE Result)\n")
 	fmt.Printf("Write Result ID: %s\n", string(writeResult.ID))
 	fmt.Printf("Status: %d\n", writeResult.Status)
 	fmt.Println("--------------------------------------------------")

@@ -1,7 +1,7 @@
 package protocol
 
 /*
-READ (0x01)
+READ (0x23)
 [Opcode: 4]
 [ID: 16]
 [CellIndex: 4]
@@ -18,7 +18,7 @@ type OpcodeReqMessage struct {
 
 func (p *ProtocolParser) Opcode(msg []byte) byte {
 	//extrael el ultimo byte del opcode
-	//0x00, 0x00, 0x00, 0x03,
+	//0x00, 0x00, 0x00, 0x23,
 	//a   , b   , c   , d   ,
 	//opcode = d
 

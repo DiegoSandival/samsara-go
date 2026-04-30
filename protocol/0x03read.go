@@ -7,7 +7,7 @@ import (
 )
 
 /*
-READ (0x03)
+READ (0x23)
 [Opcode: 4]
 [ID: 16]
 [CellIndex: 4]
@@ -122,7 +122,7 @@ func (p *ProtocolParser) ReadReqBytes(cellIndex uint32, dbName, key, secret []by
 	ID := make([]byte, 16)
 	rand.Read(ID)
 	msg := make([]byte, 4+16+4+4+4+4+len(dbName)+len(key)+len(secret))
-	binary.BigEndian.PutUint32(msg[0:4], 0x03)
+	binary.BigEndian.PutUint32(msg[0:4], 0x23)
 	copy(msg[4:20], ID)
 	binary.BigEndian.PutUint32(msg[20:24], cellIndex)
 	binary.BigEndian.PutUint32(msg[24:28], uint32(len(dbName)))
@@ -171,8 +171,8 @@ func (p *ProtocolParser) ReadResult(msg []byte) (ReadResult, error) {
 func (parser *ProtocolParser) testRead() {
 
 	rawReadReqMsg := []byte{
-		// Opcode: 0x03
-		0x00, 0x00, 0x00, 0x03,
+		// Opcode: 0x23
+		0x00, 0x00, 0x00, 0x23,
 		// ID: 16 bytes (puedes usar cualquier cosa, aquí son 16 letras 'A')
 		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
 		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
@@ -199,7 +199,7 @@ func (parser *ProtocolParser) testRead() {
 	}
 
 	// Verificación
-	fmt.Printf("Opcode: 0x03 (READ)\n")
+	fmt.Printf("Opcode: 0x23 (READ)\n")
 	fmt.Printf("ID: %s\n", string(result.ID))
 	fmt.Printf("CellIndex: %d\n", result.CellIndex)
 	fmt.Printf("DBName: %s\n", string(result.DBName))
@@ -226,7 +226,7 @@ func (parser *ProtocolParser) testRead() {
 	}
 
 	// Verificación del resultado de lectura
-	fmt.Printf("Opcode: 0x03 (READ Result)\n")
+	fmt.Printf("Opcode: 0x23 (READ Result)\n")
 	fmt.Printf("Read Result ID: %s\n", string(readResult.ID))
 	fmt.Printf("Status: %d\n", readResult.Status)
 	fmt.Printf("CellIndex: %d\n", readResult.CellIndex)

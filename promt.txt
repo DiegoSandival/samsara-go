@@ -1,3 +1,151 @@
+// router.go o dispatcher.go
+package samsara
+
+import (
+	protocol "github.com/DiegoSandival/samsara-go/protocol"
+)
+
+// ProcessRequest es la función principal que tu servidor (TCP, HTTP, etc.) llamará.
+func ProcessRequest(msg []byte, parser *protocol.ProtocolParser, handler *CentralHandler) []byte {
+	// 1. Validar que el mensaje tenga al menos el tamaño del opcode
+	if len(msg) < 1 {
+		// Asumiendo que tu protocolo tiene una forma de devolver errores genéricos
+		return []byte("error: mensaje muy corto")
+	}
+
+	// 3. Enrutar según el opcode
+	switch parser.Opcode(msg) {
+	case 0x20:
+		return handler.CreateDB(parser, msg)
+	case 0x21:
+		return handler.DelDB(parser, msg)
+	case 0x22:
+		return handler.Write(parser, msg)
+	case 0x23:
+		return handler.Read(parser, msg)
+	case 0x24:
+		return handler.ReadFree(parser, msg)
+	case 0x25:
+		return handler.Delete(parser, msg)
+	case 0x26:
+		return handler.ReadCell(parser, msg)
+	case 0x27:
+		return handler.Diferir(parser, msg)
+	case 0x28:
+		return handler.Cruzar(parser, msg)
+
+	default:
+		// Opcode no soportado
+		return []byte("error: opcode desconocido")
+	}
+}
+
+
+package samsara
+
+import (
+	"crypto/rand"
+	"path/filepath"
+
+	ouroboros "github.com/DiegoSandival/ouroboros-go"
+	protocol "github.com/DiegoSandival/samsara-go/protocol"
+)
+
+// CreateDB ejecuta la lógica y SIEMPRE retorna un []byte con la respuesta
+func (h *CentralHandler) CreateDB(parser *protocol.ProtocolParser, payload []byte) []byte {
+	req, err := parser.CreateDBReq(payload)
+	if err != nil {
+		return parser.CreateDBResultBytes(req.ID, 2)
+	}
+
+	if req.Genome&ouroboros.IsMigrated != 0 {
+		return parser.CreateDBResultBytes(req.ID, 3)
+	}
+
+	if _, exists := h.GetStore(string(req.DBName)); exists {
+		return parser.CreateDBResultBytes(req.ID, 4)
+	}
+
+	fullPath := filepath.Join(h.baseDir, string(req.DBName))
+	store, err := NewStore(fullPath, req.DBSize) // Renombrado a NewStore por claridad
+	if err != nil {
+		return parser.CreateDBResultBytes(req.ID, 5)
+	}
+
+	h.RegisterStore(string(req.DBName), store)
+
+	var salt [16]byte
+	// Read llena el slice con bytes aleatorios seguros
+	_, err = rand.Read(salt[:])
+	if err != nil {
+		// Este error es extremadamente raro, pero debe manejarse
+		return parser.CreateDBResultBytes(req.ID, 6)
+	}
+
+	cell := store.NewCellWithSecret(salt, req.Secret, req.Genome, 0, 0, 0)
+
+	store.DB().Append(cell)
+
+	return parser.CreateDBResultBytes(req.ID, 1)
+}
+
+func (h *CentralHandler) DelDB(parser *protocol.ProtocolParser, payload []byte) []byte {
+
+	req, err := parser.DeleteDBReq(payload)
+	if err != nil {
+		return parser.DeleteDBResultBytes(req.ID, 2)
+	}
+
+	store, exists := h.GetStore(string(req.DBName))
+	if !exists {
+		//return []byte("base de datos no encontrada")
+		return parser.DeleteDBResultBytes(req.ID, 3)
+	}
+
+	authorized := store.ResolveCellAuth(req.CellIndex, req.Secret)
+	if !authorized {
+		return parser.DeleteDBResultBytes(req.ID, 4)
+	}
+
+	err = store.Destroy()
+	if err != nil {
+		//return []byte("error eliminando base de datos")
+		return parser.DeleteDBResultBytes(req.ID, 5)
+	}
+
+	h.DeleteStore(string(req.DBName))
+
+	return parser.DeleteDBResultBytes(req.ID, 1)
+}
+
+package protocol
+
+/*
+READ (0x23)
+[Opcode: 4]
+[ID: 16]
+[CellIndex: 4]
+[DB Name Len: 4]
+[Key Len: 4]
+[Secret Len: 4] |
+[DB Name: N]
+[Key: M]
+[Secret: P]
+*/
+type OpcodeReqMessage struct {
+	Opcode []byte
+}
+
+func (p *ProtocolParser) Opcode(msg []byte) byte {
+	//extrael el ultimo byte del opcode
+	//0x00, 0x00, 0x00, 0x23,
+	//a   , b   , c   , d   ,
+	//opcode = d
+
+	return msg[3]
+}
+
+
 package protocol
 
 import (

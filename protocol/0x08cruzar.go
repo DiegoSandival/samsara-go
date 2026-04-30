@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-/*CRUZAR (0x08)
+/*CRUZAR (0x28)
 [Opcode: 4]
 [ID: 16]
 [DB Name Len: 4]
@@ -111,7 +111,7 @@ func (p *ProtocolParser) CruzarReqBytes(dbName []byte, cellIndexA, cellIndexB ui
 	totalLen := 4 + 16 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + dbNameLen + secretALen + secretBLen + childSecretLen
 	msg := make([]byte, totalLen)
 	offset := 0
-	binary.BigEndian.PutUint32(msg[offset:offset+4], 0x08) // Opcode
+	binary.BigEndian.PutUint32(msg[offset:offset+4], 0x28) // Opcode
 	offset += 4
 	copy(msg[offset:offset+16], ID)
 	offset += 16
@@ -191,7 +191,7 @@ func (p *ProtocolParser) CruzarResultBytes(ID []byte, status int32, cellIndex ui
 func (parser *ProtocolParser) testCruzar() {
 
 	rawCruzarReqMsg := []byte{
-		0x00, 0x00, 0x00, 0x08, // Opcode
+		0x00, 0x00, 0x00, 0x28, // Opcode
 		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, // ID
 		0x00, 0x00, 0x00, 0x04, // DB Name Len
 		0x00, 0x00, 0x00, 0x01, // CellIndexA
@@ -215,7 +215,7 @@ func (parser *ProtocolParser) testCruzar() {
 		fmt.Println("CruzarReq parseado correctamente")
 	}
 
-	fmt.Printf("Opcode: 0x08 (Cruzar)\n")
+	fmt.Printf("Opcode: 0x28 (Cruzar)\n")
 	fmt.Printf("Cruzar Req ID: %s\n", string(readCruzarReq.ID))
 	fmt.Printf("CellIndexA: %d\n", readCruzarReq.CellIndexA)
 	fmt.Printf("CellIndexB: %d\n", readCruzarReq.CellIndexB)
@@ -241,7 +241,7 @@ func (parser *ProtocolParser) testCruzar() {
 		fmt.Println("CruzarResult parseado correctamente")
 	}
 
-	fmt.Printf("Opcode: 0x08 (Cruzar Result)\n")
+	fmt.Printf("Opcode: 0x28 (Cruzar Result)\n")
 	fmt.Printf("Cruzar Result ID: %s\n", string(readCruzarResult.ID))
 	fmt.Printf("Status: %d\n", readCruzarResult.Status)
 	fmt.Printf("CellIndex: %d\n", readCruzarResult.CellIndex)
