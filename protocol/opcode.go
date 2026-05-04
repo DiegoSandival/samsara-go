@@ -1,6 +1,9 @@
 package protocol
 
 const (
+	OpcodeNamespaceMin byte = 0x20
+	OpcodeNamespaceMax byte = 0x28
+
 	OpcodeCreateDB byte = 0x20
 	OpcodeDeleteDB byte = 0x21
 	OpcodeWrite    byte = 0x22

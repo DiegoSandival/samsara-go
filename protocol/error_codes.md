@@ -6,6 +6,14 @@ All protocol-level errors now use the same binary envelope:
 
 `[ID:16][ErrorID:4][Info:N]`
 
+## Opcode Compatibility
+
+Samsara keeps its request namespace in `0x20-0x28`.
+
+- `synap2p-go` uses `0x01-0x0D` for requests and `0x0E-0x10` for emitted events.
+- `0x11-0x1F` remains intentionally unassigned as an interop buffer.
+- Keeping Samsara in `0x20+` avoids collisions while preserving the shared error envelope across both libraries.
+
 - `ID`: request ID normalized to 16 bytes.
 - `ErrorID`: global centralized error code in big endian.
 - `Info`: free-form ASCII context bytes. There is no explicit length field; the rest of the message is the info payload.
