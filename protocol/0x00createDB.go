@@ -25,12 +25,12 @@ type CreateDBReqMessage struct {
 }
 
 func (p *ProtocolParser) CreateDBReqBytes(DBName string, Secret string, DBSize uint32, Genome uint32) ([]byte, error) {
-	oPcode := uint32(0x20)
+	oPcode := uint32(OpcodeCreateDB)
 	// Generar ID aleatorio de 16 bytes
 	ID := make([]byte, 16)
 	_, err := rand.Read(ID)
 	if err != nil {
-		return nil, fmt.Errorf("error generando ID: %w", err)
+		return nil, fmt.Errorf("%w: create_db request id", ErrRandomSourceFailure)
 	}
 
 	dbNameBytes := []byte(DBName)
@@ -64,7 +64,7 @@ func (p *ProtocolParser) CreateDBReq(msg []byte) (CreateDBReqMessage, error) {
 
 	// Opcode(4) + ID(16) + DBLen(4) + SecretLen(4) + DBSize(4) + Genome(4) = 36 bytes
 	if len(msg) < 36 {
-		return cm, fmt.Errorf("mensaje demasiado corto")
+		return cm, ErrMessageTooShort
 	}
 
 	offset := 0
@@ -88,7 +88,7 @@ func (p *ProtocolParser) CreateDBReq(msg []byte) (CreateDBReqMessage, error) {
 
 	totalVariableLength := int(dbNameLen + secretLen)
 	if len(msg) < offset+totalVariableLength {
-		return cm, fmt.Errorf("mensaje incompleto")
+		return cm, ErrMessageIncomplete
 	}
 
 	cm.DBName = make([]byte, dbNameLen)

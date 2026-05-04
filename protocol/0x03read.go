@@ -35,7 +35,7 @@ func (p *ProtocolParser) ReadReq(msg []byte) (ReadReqMessage, error) {
 		// Retornamos el struct vacío si el mensaje es demasiado corto
 		// En un entorno de producción, sería mejor cambiar la firma de la
 		// función para retornar (ReadMessage, error)
-		return rm, fmt.Errorf("mensaje demasiado corto")
+		return rm, ErrMessageTooShort
 	}
 
 	offset := 0
@@ -69,7 +69,7 @@ func (p *ProtocolParser) ReadReq(msg []byte) (ReadReqMessage, error) {
 	totalVariableLength := int(dbNameLen + keyLen + secretLen)
 	if len(msg) < offset+totalVariableLength {
 		// Mensaje incompleto (los datos reales no coinciden con las longitudes dadas)
-		return rm, fmt.Errorf("mensaje incompleto")
+		return rm, ErrMessageIncomplete
 	}
 
 	// Extraemos DB Name (N bytes)

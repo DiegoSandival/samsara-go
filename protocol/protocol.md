@@ -148,3 +148,10 @@ READ Result
 [ID: 16]
 [Status: 4]
 [CellIndex: 4]*/
+
+/*GENERIC ERROR result
+[ID: 16]
+[ErrorID: 4]
+[Info: N]*/
+
+See `protocol/error_codes.md` for the centralized catalog and mapping table.

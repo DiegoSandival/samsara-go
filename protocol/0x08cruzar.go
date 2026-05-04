@@ -40,7 +40,7 @@ func (p *ProtocolParser) CruzarReq(msg []byte) (CruzarReqMessage, error) {
 	var cm CruzarReqMessage
 
 	if len(msg) < 52 {
-		return cm, fmt.Errorf("mensaje demasiado corto")
+		return cm, ErrMessageTooShort
 	}
 
 	offset := 0
@@ -79,7 +79,7 @@ func (p *ProtocolParser) CruzarReq(msg []byte) (CruzarReqMessage, error) {
 
 	totalVariableLength := int(dbNameLen + secretALen + secretBLen + childSecretLen)
 	if len(msg) < offset+totalVariableLength {
-		return cm, fmt.Errorf("mensaje incompleto")
+		return cm, ErrMessageIncomplete
 	}
 
 	cm.DBName = make([]byte, dbNameLen)

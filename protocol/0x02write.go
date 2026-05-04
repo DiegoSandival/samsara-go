@@ -33,7 +33,7 @@ func (p *ProtocolParser) WriteReq(msg []byte) (WriteReqMessage, error) {
 
 	// Opcode(4) + ID(16) + CellIndex(4) + DBLen(4) + KeyLen(4) + ValueLen(4) + SecretLen(4) = 40 bytes
 	if len(msg) < 40 {
-		return wm, fmt.Errorf("mensaje demasiado corto")
+		return wm, ErrMessageTooShort
 	}
 
 	offset := 0
@@ -60,7 +60,7 @@ func (p *ProtocolParser) WriteReq(msg []byte) (WriteReqMessage, error) {
 
 	totalVariableLength := int(dbNameLen + keyLen + valueLen + secretLen)
 	if len(msg) < offset+totalVariableLength {
-		return wm, fmt.Errorf("mensaje incompleto")
+		return wm, ErrMessageIncomplete
 	}
 
 	wm.DBName = make([]byte, dbNameLen)

@@ -28,7 +28,7 @@ func (p *ProtocolParser) DeleteDBReq(msg []byte) (DeleteDBReqMessage, error) {
 
 	// Opcode(4) + ID(16) + CellIndex(4) + DBLen(4) + SecretLen(4) = 32 bytes
 	if len(msg) < 32 {
-		return dm, fmt.Errorf("mensaje demasiado corto")
+		return dm, ErrMessageTooShort
 	}
 
 	offset := 0
@@ -49,7 +49,7 @@ func (p *ProtocolParser) DeleteDBReq(msg []byte) (DeleteDBReqMessage, error) {
 
 	totalVariableLength := int(dbNameLen + secretLen)
 	if len(msg) < offset+totalVariableLength {
-		return dm, fmt.Errorf("mensaje incompleto")
+		return dm, ErrMessageIncomplete
 	}
 
 	dm.DBName = make([]byte, dbNameLen)

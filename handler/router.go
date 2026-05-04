@@ -2,40 +2,41 @@
 package samsara
 
 import (
+	"fmt"
+
 	protocol "github.com/DiegoSandival/samsara-go/protocol"
 )
 
 // ProcessRequest es la función principal que tu servidor (TCP, HTTP, etc.) llamará.
 func ProcessRequest(msg []byte, parser *protocol.ProtocolParser, handler *CentralHandler) []byte {
 	// 1. Validar que el mensaje tenga al menos el tamaño del opcode
-	if len(msg) < 1 {
-		// Asumiendo que tu protocolo tiene una forma de devolver errores genéricos
-		return []byte("error: mensaje muy corto")
+	if len(msg) < 4 {
+		return parser.ErrorResultBytes(parser.RequestID(msg), uint32(protocol.ErrorCodeOpcodeFrameTooShort), []byte("router.opcode"))
 	}
 
 	// 3. Enrutar según el opcode
 	switch parser.Opcode(msg) {
-	case 0x20:
+	case protocol.OpcodeCreateDB:
 		return handler.CreateDB(parser, msg)
-	case 0x21:
+	case protocol.OpcodeDeleteDB:
 		return handler.DelDB(parser, msg)
-	case 0x22:
+	case protocol.OpcodeWrite:
 		return handler.Write(parser, msg)
-	case 0x23:
+	case protocol.OpcodeRead:
 		return handler.Read(parser, msg)
-	case 0x24:
+	case protocol.OpcodeReadFree:
 		return handler.ReadFree(parser, msg)
-	case 0x25:
+	case protocol.OpcodeDelete:
 		return handler.Delete(parser, msg)
-	case 0x26:
+	case protocol.OpcodeReadCell:
 		return handler.ReadCell(parser, msg)
-	case 0x27:
+	case protocol.OpcodeDiferir:
 		return handler.Diferir(parser, msg)
-	case 0x28:
+	case protocol.OpcodeCruzar:
 		return handler.Cruzar(parser, msg)
 
 	default:
-		// Opcode no soportado
-		return []byte("error: opcode desconocido")
+		info := fmt.Sprintf("router.opcode=0x%02x", parser.Opcode(msg))
+		return parser.ErrorResultBytes(parser.RequestID(msg), uint32(protocol.ErrorCodeUnknownOpcode), []byte(info))
 	}
 }

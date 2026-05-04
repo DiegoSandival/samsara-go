@@ -54,7 +54,7 @@ func (p *ProtocolParser) ReadCellReq(msg []byte) (ReadCellReqMessage, error) {
 
 	// Opcode(4) + ID(16) + CellIndex(4) + DBLen(4) + SecretLen(4) = 32 bytes
 	if len(msg) < 32 {
-		return rm, fmt.Errorf("mensaje demasiado corto")
+		return rm, ErrMessageTooShort
 	}
 
 	offset := 0
@@ -75,7 +75,7 @@ func (p *ProtocolParser) ReadCellReq(msg []byte) (ReadCellReqMessage, error) {
 
 	totalVariableLength := int(dbNameLen + secretLen)
 	if len(msg) < offset+totalVariableLength {
-		return rm, fmt.Errorf("mensaje incompleto")
+		return rm, ErrMessageIncomplete
 	}
 
 	rm.DBName = make([]byte, dbNameLen)

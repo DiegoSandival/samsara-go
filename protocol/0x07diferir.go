@@ -38,7 +38,7 @@ func (p *ProtocolParser) DiferirReq(msg []byte) (DiferirReqMessage, error) {
 	var dr DiferirReqMessage
 
 	if len(msg) < 68 {
-		return dr, fmt.Errorf("mensaje demasiado corto")
+		return dr, ErrMessageTooShort
 	}
 	offset := 0
 	offset += 4 // opcode
@@ -62,14 +62,14 @@ func (p *ProtocolParser) DiferirReq(msg []byte) (DiferirReqMessage, error) {
 	dr.Z = binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
 	if len(msg) < offset+16 {
-		return dr, fmt.Errorf("mensaje demasiado corto para ChildSalt")
+		return dr, ErrChildSaltTooShort
 	}
 	offset += 16
 	childSecretLen := binary.BigEndian.Uint32(msg[offset : offset+4])
 	offset += 4
 	totalVariableLength := int(dbNameLen + secretLen + childSecretLen)
 	if len(msg) < offset+totalVariableLength {
-		return dr, fmt.Errorf("mensaje incompleto")
+		return dr, ErrMessageIncomplete
 	}
 
 	dr.DBName = make([]byte, dbNameLen)

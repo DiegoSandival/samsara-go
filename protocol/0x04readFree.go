@@ -40,7 +40,7 @@ func (p *ProtocolParser) ReadFreeReq(msg []byte) (ReadFreeReqMessage, error) {
 
 	// Opcode(4) + ID(16) + DBLen(4) + KeyLen(4) = 28 bytes
 	if len(msg) < 28 {
-		return rm, fmt.Errorf("mensaje demasiado corto")
+		return rm, ErrMessageTooShort
 	}
 
 	offset := 0
@@ -58,7 +58,7 @@ func (p *ProtocolParser) ReadFreeReq(msg []byte) (ReadFreeReqMessage, error) {
 
 	totalVariableLength := int(dbNameLen + keyLen)
 	if len(msg) < offset+totalVariableLength {
-		return rm, fmt.Errorf("mensaje incompleto")
+		return rm, ErrMessageIncomplete
 	}
 
 	rm.DBName = make([]byte, dbNameLen)
